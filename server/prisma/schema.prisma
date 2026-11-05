@@ -1,0 +1,507 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String             @id @default(cuid())
+  email             String             @unique
+  mobile            String             @unique
+  passwordHash      String
+  role              Role               @default(USER)
+  status            UserStatus         @default(ACTIVE)
+  profileCreatedFor CreatedFor         @default(MYSELF)
+  emailVerified     Boolean            @default(false)
+  mobileVerified    Boolean            @default(false)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  activityLogs      AdminActivityLog[]
+  blocksReceived    Block[]            @relation("BlockBlocked")
+  blocksMade        Block[]            @relation("BlockBlocker")
+  conversations1    Conversation[]     @relation("UserOne")
+  conversations2    Conversation[]     @relation("UserTwo")
+  receivedInterests Interest[]         @relation("ReceivedInterests")
+  sentInterests     Interest[]         @relation("SentInterests")
+  messagesSent      Message[]          @relation("MessageSender")
+  notifications     Notification[]
+  payments          Payment[]
+  profile           Profile?
+  profileViews      ProfileView[]      @relation("ViewedUser")
+  viewedProfiles    ProfileView[]      @relation("ViewerUser")
+  reportsReceived   Report[]           @relation("ReportReported")
+  reportsMade       Report[]           @relation("ReportReporter")
+  shortlistedBy     Shortlist[]        @relation("ShortlistedProfile")
+  shortlists        Shortlist[]        @relation("ShortlistedBy")
+  subscriptions     Subscription[]
+}
+
+model Profile {
+  id                   String             @id @default(cuid())
+  userId               String             @unique
+  fullName             String
+  gender               Gender
+  dateOfBirth          DateTime
+  height               Int
+  maritalStatus        MaritalStatus      @default(NEVER_MARRIED)
+  aboutMe              String?
+  profileSummary       String?
+  isCompleted          Boolean            @default(false)
+  completionPercentage Int                @default(20)
+  isVisible            Boolean            @default(true)
+  isVerified           Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  educationCareer      EducationCareer?
+  familyDetails        FamilyDetails?
+  lifestyleDetails     LifestyleDetails?
+  location             Location?
+  partnerPreference    PartnerPreference?
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  photos               ProfilePhoto[]
+  religionCommunity    ReligionCommunity?
+}
+
+model ProfilePhoto {
+  id               String      @id @default(cuid())
+  profileId        String
+  url              String
+  isProfilePicture Boolean     @default(false)
+  orderIndex       Int         @default(0)
+  status           PhotoStatus @default(APPROVED)
+  createdAt        DateTime    @default(now())
+  profile          Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model ReligionCommunity {
+  id           String        @id @default(cuid())
+  profileId    String        @unique
+  religion     Religion      @default(HINDU)
+  community    String        @default("Not Specified")
+  caste        String?
+  subCaste     String?
+  motherTongue String        @default("Hindi")
+  gothra       String?
+  manglik      ManglikStatus @default(DONT_KNOW)
+  profile      Profile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model EducationCareer {
+  id               String         @id @default(cuid())
+  profileId        String         @unique
+  highestEducation String         @default("Bachelor")
+  educationField   String?
+  collegeName      String?
+  occupationType   OccupationType @default(PRIVATE_SECTOR)
+  occupationTitle  String         @default("Professional")
+  companyName      String?
+  annualIncome     String         @default("Not Disclosed")
+  currency         String         @default("INR")
+  profile          Profile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model Location {
+  id                String            @id @default(cuid())
+  profileId         String            @unique
+  country           String            @default("India")
+  state             String            @default("Delhi")
+  city              String            @default("New Delhi")
+  citizenship       String            @default("Indian")
+  residentialStatus ResidentialStatus @default(CITIZEN)
+  profile           Profile           @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model FamilyDetails {
+  id               String       @id @default(cuid())
+  profileId        String       @unique
+  familyType       FamilyType   @default(NUCLEAR)
+  familyValues     FamilyValues @default(MODERATE)
+  familyStatus     FamilyStatus @default(MIDDLE_CLASS)
+  fatherOccupation String?
+  motherOccupation String?
+  brothersCount    Int          @default(0)
+  brothersMarried  Int          @default(0)
+  sistersCount     Int          @default(0)
+  sistersMarried   Int          @default(0)
+  aboutFamily      String?
+  profile          Profile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model LifestyleDetails {
+  id        String      @id @default(cuid())
+  profileId String      @unique
+  diet      DietType    @default(VEGETARIAN)
+  smoking   HabitStatus @default(NO)
+  drinking  HabitStatus @default(NO)
+  hobbies   String?
+  interests String?
+  profile   Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model PartnerPreference {
+  id            String  @id @default(cuid())
+  profileId     String  @unique
+  minAge        Int     @default(21)
+  maxAge        Int     @default(35)
+  minHeight     Int     @default(150)
+  maxHeight     Int     @default(195)
+  maritalStatus String?
+  religions     String?
+  communities   String?
+  motherTongues String?
+  minIncome     String?
+  country       String?
+  state         String?
+  city          String?
+  diet          String?
+  profile       Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model Interest {
+  id         String         @id @default(cuid())
+  senderId   String
+  receiverId String
+  status     InterestStatus @default(PENDING)
+  message    String?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  receiver   User           @relation("ReceivedInterests", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User           @relation("SentInterests", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+}
+
+model Shortlist {
+  id                String   @id @default(cuid())
+  userId            String
+  shortlistedUserId String
+  createdAt         DateTime @default(now())
+  shortlistedUser   User     @relation("ShortlistedProfile", fields: [shortlistedUserId], references: [id], onDelete: Cascade)
+  user              User     @relation("ShortlistedBy", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, shortlistedUserId])
+}
+
+model ProfileView {
+  id           String   @id @default(cuid())
+  viewerId     String
+  viewedUserId String
+  viewedAt     DateTime @default(now())
+  viewedUser   User     @relation("ViewedUser", fields: [viewedUserId], references: [id], onDelete: Cascade)
+  viewer       User     @relation("ViewerUser", fields: [viewerId], references: [id], onDelete: Cascade)
+
+  @@index([viewerId, viewedUserId])
+}
+
+model Conversation {
+  id            String    @id @default(cuid())
+  user1Id       String
+  user2Id       String
+  lastMessageAt DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user1         User      @relation("UserOne", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2         User      @relation("UserTwo", fields: [user2Id], references: [id], onDelete: Cascade)
+  messages      Message[]
+
+  @@unique([user1Id, user2Id])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  senderId       String
+  content        String
+  isRead         Boolean      @default(false)
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MembershipPlan {
+  id               String         @id @default(cuid())
+  name             String
+  planCode         PlanCode       @unique
+  price            Float
+  durationMonths   Int            @default(1)
+  interestLimit    Int            @default(10)
+  profileViewLimit Int            @default(50)
+  contactViewLimit Int            @default(5)
+  canDirectMessage Boolean        @default(false)
+  priorityListing  Boolean        @default(false)
+  features         String
+  isActive         Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  payments         Payment[]
+  subscriptions    Subscription[]
+}
+
+model Subscription {
+  id                 String             @id @default(cuid())
+  userId             String
+  planId             String
+  status             SubscriptionStatus @default(ACTIVE)
+  startDate          DateTime           @default(now())
+  endDate            DateTime
+  interestsRemaining Int
+  viewsRemaining     Int
+  contactsRemaining  Int
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  plan               MembershipPlan     @relation(fields: [planId], references: [id])
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id            String         @id @default(cuid())
+  userId        String
+  planId        String
+  amount        Float
+  currency      String         @default("INR")
+  orderId       String         @unique
+  paymentId     String?        @unique
+  signature     String?
+  status        PaymentStatus  @default(PENDING)
+  paymentMethod String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  plan          MembershipPlan @relation(fields: [planId], references: [id])
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Report {
+  id             String       @id @default(cuid())
+  reporterId     String
+  reportedUserId String
+  reason         String
+  description    String?
+  status         ReportStatus @default(PENDING)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  reportedUser   User         @relation("ReportReported", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  reporter       User         @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+}
+
+model Block {
+  id            String   @id @default(cuid())
+  blockerId     String
+  blockedUserId String
+  reason        String?
+  createdAt     DateTime @default(now())
+  blockedUser   User     @relation("BlockBlocked", fields: [blockedUserId], references: [id], onDelete: Cascade)
+  blocker       User     @relation("BlockBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedUserId])
+}
+
+model SuccessStory {
+  id          String   @id @default(cuid())
+  groomName   String
+  brideName   String
+  weddingDate DateTime
+  story       String
+  couplePhoto String
+  isFeatured  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model Testimonial {
+  id             String   @id @default(cuid())
+  authorName     String
+  authorLocation String
+  quote          String
+  rating         Int      @default(5)
+  avatarUrl      String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+}
+
+model FAQ {
+  id         String   @id @default(cuid())
+  question   String
+  answer     String
+  category   String   @default("General")
+  orderIndex Int      @default(0)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+}
+
+model AdminActivityLog {
+  id         String   @id @default(cuid())
+  adminId    String
+  action     String
+  targetType String
+  targetId   String?
+  details    String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+  admin      User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum CreatedFor {
+  MYSELF
+  SON
+  DAUGHTER
+  BROTHER
+  SISTER
+  RELATIVE
+  FRIEND
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum MaritalStatus {
+  NEVER_MARRIED
+  DIVORCED
+  WIDOWED
+  AWAITING_DIVORCE
+}
+
+enum Religion {
+  HINDU
+  MUSLIM
+  SIKH
+  CHRISTIAN
+  JAIN
+  BUDDHIST
+  PARSI
+  JEWISH
+  OTHER
+}
+
+enum ManglikStatus {
+  YES
+  NO
+  DONT_KNOW
+  ANGSHIK
+}
+
+enum OccupationType {
+  PRIVATE_SECTOR
+  GOVERNMENT
+  BUSINESS
+  DEFENCE
+  SELF_EMPLOYED
+  NOT_WORKING
+}
+
+enum ResidentialStatus {
+  CITIZEN
+  PERMANENT_RESIDENT
+  WORK_PERMIT
+  STUDENT_VISA
+}
+
+enum FamilyType {
+  NUCLEAR
+  JOINT
+}
+
+enum FamilyValues {
+  TRADITIONAL
+  MODERATE
+  LIBERAL
+}
+
+enum FamilyStatus {
+  MIDDLE_CLASS
+  UPPER_MIDDLE_CLASS
+  AFFLUENT
+  HIGH_NET_WORTH
+}
+
+enum DietType {
+  VEGETARIAN
+  NON_VEGETARIAN
+  EGGETARIAN
+  JAIN
+  VEGAN
+}
+
+enum HabitStatus {
+  NO
+  OCCASIONALLY
+  YES
+}
+
+enum PhotoStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum InterestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum NotificationType {
+  INTEREST_RECEIVED
+  INTEREST_ACCEPTED
+  INTEREST_REJECTED
+  NEW_MESSAGE
+  SHORTLISTED
+  PROFILE_VIEW
+  SUBSCRIPTION_UPDATED
+  SYSTEM
+}
+
+enum PlanCode {
+  FREE
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+  DISMISSED
+}

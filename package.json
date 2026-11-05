@@ -1,0 +1,17 @@
+{
+  "name": "kalyanam-matrimonial-platform",
+  "version": "1.0.0",
+  "description": "Premium Indian Matrimonial Platform (React + Node.js + PostgreSQL + Prisma + Tailwind CSS)",
+  "scripts": {
+    "server:install": "cd server && npm install",
+    "client:install": "cd client && npm install",
+    "install:all": "npm run server:install && npm run client:install",
+    "db:push": "cd server && npx prisma db push",
+    "db:seed": "cd server && node prisma/seed.js",
+    "server": "cd server && node src/index.js",
+    "client": "cd client && npm run dev",
+    "test:api": "node test_full_suite.js",
+    "build:client": "cd client && npm run build"
+  }
+}
+

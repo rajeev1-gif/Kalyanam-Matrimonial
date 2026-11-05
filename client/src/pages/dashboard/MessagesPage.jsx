@@ -1,0 +1,382 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  MessageSquare,
+  Send,
+  User,
+  Check,
+  CheckCheck,
+  Circle,
+  Clock,
+  Sparkles,
+} from 'lucide-react';
+import { chatService } from '../../services/chatService';
+import { useAuth } from '../../context/AuthContext';
+import { useSocket } from '../../context/SocketContext';
+import { useNotifications } from '../../context/NotificationContext';
+
+export default function MessagesPage() {
+  const { user } = useAuth();
+  const { socket, onlineUsers } = useSocket();
+  const { refreshNotifications } = useNotifications();
+
+  const [conversations, setConversations] = useState([]);
+  const [activeConversation, setActiveConversation] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [partnerInfo, setPartnerInfo] = useState(null);
+  const [inputText, setInputText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+
+  const messagesEndRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+
+  // Load conversation list
+  const fetchConversations = async () => {
+    try {
+      const res = await chatService.getConversations();
+      if (res.success) {
+        setConversations(res.data || []);
+        if (res.data?.length > 0 && !activeConversation) {
+          setActiveConversation(res.data[0]);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchConversations();
+  }, []);
+
+  // Load messages when active conversation changes
+  useEffect(() => {
+    if (!activeConversation) return;
+
+    async function loadMessages() {
+      setLoadingMessages(true);
+      try {
+        const res = await chatService.getMessages(activeConversation.id);
+        if (res.success) {
+          setMessages(res.data.messages || []);
+          setPartnerInfo(res.data.partner || null);
+          refreshNotifications();
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingMessages(false);
+      }
+    }
+
+    loadMessages();
+
+    // Join room in socket
+    if (socket) {
+      socket.emit('join_conversation', activeConversation.id);
+    }
+
+    return () => {
+      if (socket) {
+        socket.emit('leave_conversation', activeConversation.id);
+      }
+    };
+  }, [activeConversation, socket, refreshNotifications]);
+
+  // Scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isTyping]);
+
+  // Listen for socket events
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewMessage = (msg) => {
+      if (activeConversation && msg.conversationId === activeConversation.id) {
+        setMessages((prev) => [...prev, msg]);
+      }
+      fetchConversations();
+    };
+
+    const handlePartnerTyping = ({ conversationId }) => {
+      if (activeConversation && conversationId === activeConversation.id) {
+        setIsTyping(true);
+      }
+    };
+
+    const handlePartnerStoppedTyping = ({ conversationId }) => {
+      if (activeConversation && conversationId === activeConversation.id) {
+        setIsTyping(false);
+      }
+    };
+
+    socket.on('new_conversation_message', handleNewMessage);
+    socket.on('partner_typing', handlePartnerTyping);
+    socket.on('partner_stopped_typing', handlePartnerStoppedTyping);
+
+    return () => {
+      socket.off('new_conversation_message', handleNewMessage);
+      socket.off('partner_typing', handlePartnerTyping);
+      socket.off('partner_stopped_typing', handlePartnerStoppedTyping);
+    };
+  }, [socket, activeConversation]);
+
+  // Handle typing input
+  const handleInputChange = (e) => {
+    setInputText(e.target.value);
+    if (!socket || !activeConversation) return;
+
+    socket.emit('typing_start', {
+      conversationId: activeConversation.id,
+      receiverId: activeConversation.partnerId,
+    });
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit('typing_stop', {
+        conversationId: activeConversation.id,
+        receiverId: activeConversation.partnerId,
+      });
+    }, 2000);
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!inputText.trim() || !activeConversation) return;
+
+    const text = inputText.trim();
+    setInputText('');
+
+    try {
+      const res = await chatService.sendMessage({
+        conversationId: activeConversation.id,
+        content: text,
+      });
+
+      if (res.success && res.data) {
+        setMessages((prev) => [...prev, res.data]);
+        fetchConversations();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const isPartnerOnline = activeConversation && onlineUsers.has(activeConversation.partnerId);
+
+  return (
+    <div className="bg-white rounded-3xl border border-gold-200/90 shadow-xl overflow-hidden h-[calc(100vh-140px)] flex flex-col md:flex-row">
+      
+      {/* LEFT: CONVERSATION LIST */}
+      <div className="w-full md:w-80 border-r border-gold-200/80 flex flex-col shrink-0 bg-ivory-50/50">
+        
+        <div className="p-4 border-b border-gold-200/80 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="w-5 h-5 text-primary-800" />
+            <h2 className="font-serif font-bold text-base text-charcoal-900">Conversations</h2>
+          </div>
+          <span className="text-[10px] font-bold bg-gold-200/80 text-gold-900 px-2 py-0.5 rounded-full">
+            {conversations.length}
+          </span>
+        </div>
+
+        <div className="flex-1 overflow-y-auto divide-y divide-gold-100">
+          {loading ? (
+            <div className="text-center py-12 text-xs text-gray-500">Loading chats...</div>
+          ) : conversations.length === 0 ? (
+            <div className="p-6 text-center space-y-2">
+              <p className="text-xs text-gray-500">No active conversations.</p>
+              <p className="text-[11px] text-gray-400">
+                Connect with profiles or accept interest requests to begin conversations.
+              </p>
+            </div>
+          ) : (
+            conversations.map((c) => {
+              const isSelected = activeConversation?.id === c.id;
+              const online = onlineUsers.has(c.partnerId);
+
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => setActiveConversation(c)}
+                  className={`p-4 flex items-center gap-3 cursor-pointer transition ${
+                    isSelected ? 'bg-primary-50/80 border-l-4 border-primary-800' : 'hover:bg-gold-50/60'
+                  }`}
+                >
+                  <div className="relative w-12 h-12 rounded-full overflow-hidden bg-ivory-200 border border-gold-300 shrink-0">
+                    {c.partnerPhoto ? (
+                      <img src={c.partnerPhoto} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center font-bold text-primary-800 text-xs">
+                        {c.partnerName?.[0] || 'M'}
+                      </div>
+                    )}
+                    {online && (
+                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <h4 className="font-bold text-xs text-charcoal-900 truncate">
+                        {c.partnerName}
+                      </h4>
+                      {c.lastMessageAt && (
+                        <span className="text-[10px] text-gray-400 shrink-0">
+                          {new Date(c.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 truncate">{c.lastMessage || 'Connected! Say Namaste.'}</p>
+                  </div>
+
+                  {c.unreadCount > 0 && (
+                    <span className="w-5 h-5 rounded-full bg-primary-700 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                      {c.unreadCount}
+                    </span>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* RIGHT: CHAT WINDOW */}
+      <div className="flex-1 flex flex-col justify-between bg-white">
+        
+        {activeConversation ? (
+          <>
+            {/* Chat Top Header */}
+            <div className="p-4 px-6 border-b border-gold-200/80 flex items-center justify-between bg-white shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="relative w-10 h-10 rounded-full overflow-hidden bg-ivory-200 border border-gold-300">
+                  {partnerInfo?.photo ? (
+                    <img src={partnerInfo.photo} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center font-bold text-primary-800 text-xs">
+                      {partnerInfo?.fullName?.[0] || 'M'}
+                    </div>
+                  )}
+                  {isPartnerOnline && (
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></span>
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-serif font-bold text-sm text-charcoal-900">
+                    {partnerInfo?.fullName || activeConversation.partnerName}
+                  </h3>
+                  <span className="text-[11px] text-gray-500 flex items-center gap-1">
+                    <Circle className={`w-2 h-2 ${isPartnerOnline ? 'text-green-500 fill-green-500' : 'text-gray-300 fill-gray-300'}`} />
+                    {isPartnerOnline ? 'Active Online' : 'Offline'}
+                  </span>
+                </div>
+              </div>
+
+              <Link
+                to={`/profile/${activeConversation.partnerId}`}
+                className="text-xs font-semibold text-primary-800 hover:text-primary-950 px-3 py-1.5 rounded-lg border border-gold-300 hover:bg-gold-50 transition"
+              >
+                View Full Profile
+              </Link>
+            </div>
+
+            {/* Messages Scroll View */}
+            <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-gradient-to-b from-ivory-100/50 to-white">
+              {loadingMessages ? (
+                <div className="text-center py-12 text-xs text-gray-400">Loading chat history...</div>
+              ) : messages.length === 0 ? (
+                <div className="text-center py-12 space-y-2">
+                  <Sparkles className="w-8 h-8 text-gold-500 mx-auto" />
+                  <p className="font-serif font-bold text-sm text-charcoal-800">
+                    Connection Accepted!
+                  </p>
+                  <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                    Take the first step to say hello, ask about family, and get to know each other.
+                  </p>
+                </div>
+              ) : (
+                messages.map((m) => {
+                  const isMine = m.senderId === user.id;
+
+                  return (
+                    <div
+                      key={m.id}
+                      className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}
+                    >
+                      <div
+                        className={`max-w-md p-3.5 rounded-2xl text-xs leading-relaxed shadow-sm ${
+                          isMine
+                            ? 'bg-gradient-to-r from-primary-850 to-primary-950 text-white rounded-br-none'
+                            : 'bg-ivory-50 text-charcoal-900 border border-gold-200/80 rounded-bl-none'
+                        }`}
+                      >
+                        <p>{m.content}</p>
+                        <div
+                          className={`flex items-center justify-end gap-1 text-[9px] mt-1 ${
+                            isMine ? 'text-primary-200' : 'text-gray-400'
+                          }`}
+                        >
+                          <span>{new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          {isMine && (
+                            m.isRead ? <CheckCheck className="w-3 h-3 text-gold-300" /> : <Check className="w-3 h-3" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+
+              {/* Typing indicator */}
+              {isTyping && (
+                <div className="flex items-center gap-1.5 text-xs text-gray-500 italic bg-gold-50 px-3 py-1 rounded-full w-fit">
+                  <span className="w-1.5 h-1.5 bg-gold-500 rounded-full animate-bounce"></span>
+                  <span className="w-1.5 h-1.5 bg-gold-500 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                  <span className="w-1.5 h-1.5 bg-gold-500 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                  <span className="ml-1 text-[11px]">partner is typing...</span>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Message Input Bar */}
+            <form onSubmit={handleSendMessage} className="p-4 border-t border-gold-200/80 bg-white flex items-center gap-3">
+              <input
+                type="text"
+                placeholder="Type your message with respect and kindness..."
+                value={inputText}
+                onChange={handleInputChange}
+                className="flex-1 h-12 px-4 text-xs rounded-2xl border border-gray-300 focus:outline-none focus:border-primary-700 shadow-sm"
+              />
+              <button
+                type="submit"
+                disabled={!inputText.trim()}
+                className="w-12 h-12 rounded-2xl bg-gradient-to-r from-primary-800 to-primary-950 text-white flex items-center justify-center shadow-rose-glow hover:shadow-lg disabled:opacity-40 transition"
+              >
+                <Send className="w-4 h-4 text-gold-300" />
+              </button>
+            </form>
+          </>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-3">
+            <MessageSquare className="w-12 h-12 text-gold-400" />
+            <h3 className="font-serif text-lg font-bold text-charcoal-900">Select a Conversation</h3>
+            <p className="text-xs text-gray-500 max-w-sm">
+              Choose a match from the left panel to begin instant real-time conversation.
+            </p>
+          </div>
+        )}
+
+      </div>
+
+    </div>
+  );
+}
+
