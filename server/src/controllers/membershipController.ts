@@ -1,8 +1,10 @@
-const crypto = require('crypto');
-const prisma = require('../config/db');
-const { successResponse, errorResponse } = require('../utils/response');
+import { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
+import prisma from '../config/db';
+import { successResponse, errorResponse } from '../utils/response';
+import { AuthenticatedRequest } from '../types';
 
-async function getAllPlans(req, res, next) {
+export async function getAllPlans(req: Request, res: Response, next: NextFunction) {
   try {
     const plans = await prisma.membershipPlan.findMany({
       where: { isActive: true },
@@ -20,7 +22,7 @@ async function getAllPlans(req, res, next) {
   }
 }
 
-async function getCurrentSubscription(req, res, next) {
+export async function getCurrentSubscription(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const currentUserId = req.user.id;
 
@@ -52,7 +54,7 @@ async function getCurrentSubscription(req, res, next) {
   }
 }
 
-async function createOrder(req, res, next) {
+export async function createOrder(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const { planId } = req.body;
     const currentUserId = req.user.id;
@@ -95,7 +97,7 @@ async function createOrder(req, res, next) {
   }
 }
 
-async function verifyPayment(req, res, next) {
+export async function verifyPayment(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const currentUserId = req.user.id;
     const { orderId, paymentId, signature } = req.body;
@@ -185,7 +187,7 @@ async function verifyPayment(req, res, next) {
   }
 }
 
-async function getPaymentHistory(req, res, next) {
+export async function getPaymentHistory(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const currentUserId = req.user.id;
 
@@ -201,11 +203,4 @@ async function getPaymentHistory(req, res, next) {
   }
 }
 
-module.exports = {
-  getAllPlans,
-  getCurrentSubscription,
-  createOrder,
-  verifyPayment,
-  getPaymentHistory,
-};
 

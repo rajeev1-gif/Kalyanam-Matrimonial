@@ -1,8 +1,10 @@
-const jwt = require('jsonwebtoken');
-const prisma = require('../config/db');
-const { errorResponse } = require('../utils/response');
+import { Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+import prisma from '../config/db';
+import { errorResponse } from '../utils/response';
+import { AuthenticatedRequest } from '../types';
 
-async function authenticate(req, res, next) {
+export async function authenticate(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -10,9 +12,12 @@ async function authenticate(req, res, next) {
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'matrimonial_jwt_super_secret_key_2026_indian_wedding');
+    const decoded: any = jwt.verify(
+      token,
+      process.env.JWT_SECRET || 'matrimonial_jwt_super_secret_key_2026_indian_wedding'
+    );
 
-    const user = await prisma.user.findUnique({
+    const user: any = await prisma.user.findUnique({
       where: { id: decoded.userId },
       include: {
         profile: {
@@ -42,7 +47,7 @@ async function authenticate(req, res, next) {
 
     req.user = user;
     next();
-  } catch (error) {
+  } catch (error: any) {
     if (error.name === 'TokenExpiredError') {
       return errorResponse(res, 'Token expired. Please login again.', 401);
     }
@@ -50,18 +55,21 @@ async function authenticate(req, res, next) {
   }
 }
 
-async function optionalAuth(req, res, next) {
+export async function optionalAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      req.user = null;
+      req.user = null as any;
       return next();
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'matrimonial_jwt_super_secret_key_2026_indian_wedding');
+    const decoded: any = jwt.verify(
+      token,
+      process.env.JWT_SECRET || 'matrimonial_jwt_super_secret_key_2026_indian_wedding'
+    );
 
-    const user = await prisma.user.findUnique({
+    const user: any = await prisma.user.findUnique({
       where: { id: decoded.userId },
       include: {
         profile: true,
@@ -76,21 +84,20 @@ async function optionalAuth(req, res, next) {
     req.user = user || null;
     next();
   } catch (err) {
-    req.user = null;
+    req.user = null as any;
     next();
   }
 }
 
-function requireAdmin(req, res, next) {
+export function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   if (!req.user || req.user.role !== 'ADMIN') {
     return errorResponse(res, 'Access denied. Administrator privileges required.', 403);
   }
   next();
 }
 
-module.exports = {
+export default {
   authenticate,
   optionalAuth,
   requireAdmin,
 };
-

@@ -1,7 +1,9 @@
-const prisma = require('../config/db');
-const { successResponse, errorResponse } = require('../utils/response');
+import { Request, Response, NextFunction } from 'express';
+import prisma from '../config/db';
+import { successResponse, errorResponse } from '../utils/response';
+import { AuthenticatedRequest } from '../types';
 
-async function searchProfiles(req, res, next) {
+export async function searchProfiles(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const {
       gender,
@@ -23,7 +25,7 @@ async function searchProfiles(req, res, next) {
       sortBy = 'recent', // 'recent', 'age_asc', 'age_desc', 'completeness'
       page = 1,
       limit = 12,
-    } = req.query;
+    } = req.query as any;
 
     const currentUserId = req.user?.id;
     const pageNum = Math.max(1, parseInt(page));
@@ -45,7 +47,7 @@ async function searchProfiles(req, res, next) {
     }
 
     // Build where conditions
-    const profileWhere = {
+    const profileWhere: any = {
       user: {
         id: { notIn: excludedUserIds },
         status: 'ACTIVE',
@@ -100,22 +102,22 @@ async function searchProfiles(req, res, next) {
     }
 
     // Relational filters
-    const religionFilter = {};
-    if (religion) religionFilter.religion = religion.toUpperCase();
+    const religionFilter: any = {};
+    if (religion) religionFilter.religion = (religion as string).toUpperCase();
     if (community) religionFilter.community = { contains: community, mode: 'insensitive' };
     if (motherTongue) religionFilter.motherTongue = { contains: motherTongue, mode: 'insensitive' };
     if (Object.keys(religionFilter).length > 0) {
       profileWhere.religionCommunity = religionFilter;
     }
 
-    const educationFilter = {};
+    const educationFilter: any = {};
     if (highestEducation) educationFilter.highestEducation = { contains: highestEducation, mode: 'insensitive' };
     if (occupation) educationFilter.occupationTitle = { contains: occupation, mode: 'insensitive' };
     if (Object.keys(educationFilter).length > 0) {
       profileWhere.educationCareer = educationFilter;
     }
 
-    const locationFilter = {};
+    const locationFilter: any = {};
     if (country) locationFilter.country = { contains: country, mode: 'insensitive' };
     if (state) locationFilter.state = { contains: state, mode: 'insensitive' };
     if (city) locationFilter.city = { contains: city, mode: 'insensitive' };
@@ -123,14 +125,14 @@ async function searchProfiles(req, res, next) {
       profileWhere.location = locationFilter;
     }
 
-    const lifestyleFilter = {};
-    if (diet) lifestyleFilter.diet = diet.toUpperCase();
+    const lifestyleFilter: any = {};
+    if (diet) lifestyleFilter.diet = (diet as string).toUpperCase();
     if (Object.keys(lifestyleFilter).length > 0) {
       profileWhere.lifestyleDetails = lifestyleFilter;
     }
 
     // Sorting
-    let orderBy = { createdAt: 'desc' };
+    let orderBy: any = { createdAt: 'desc' };
     if (sortBy === 'age_asc') {
       orderBy = { dateOfBirth: 'desc' }; // younger first
     } else if (sortBy === 'age_desc') {
@@ -222,7 +224,7 @@ async function searchProfiles(req, res, next) {
   }
 }
 
-async function getRecommendedMatches(req, res, next) {
+export async function getRecommendedMatches(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const currentUserId = req.user.id;
     const userProfile = req.user.profile;
@@ -278,7 +280,7 @@ async function getRecommendedMatches(req, res, next) {
   }
 }
 
-async function getFeaturedProfiles(req, res, next) {
+export async function getFeaturedProfiles(req: Request, res: Response, next: NextFunction) {
   try {
     const profiles = await prisma.profile.findMany({
       where: {
@@ -312,7 +314,7 @@ async function getFeaturedProfiles(req, res, next) {
   }
 }
 
-async function getRecentProfiles(req, res, next) {
+export async function getRecentProfiles(req: Request, res: Response, next: NextFunction) {
   try {
     const profiles = await prisma.profile.findMany({
       where: {
@@ -344,10 +346,4 @@ async function getRecentProfiles(req, res, next) {
   }
 }
 
-module.exports = {
-  searchProfiles,
-  getRecommendedMatches,
-  getFeaturedProfiles,
-  getRecentProfiles,
-};
 

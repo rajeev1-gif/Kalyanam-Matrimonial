@@ -1,8 +1,9 @@
-const express = require('express');
+import express from 'express';
+import * as profileController from '../controllers/profileController';
+import { authenticate, optionalAuth } from '../middleware/auth';
+import upload from '../middleware/upload';
+
 const router = express.Router();
-const profileController = require('../controllers/profileController');
-const { authenticate, optionalAuth } = require('../middleware/auth');
-const upload = require('../middleware/upload');
 
 // My profile operations
 router.get('/me', authenticate, profileController.getMyProfile);
@@ -16,5 +17,5 @@ router.put('/photos/:photoId/primary', authenticate, profileController.setPrimar
 // Public profile view
 router.get('/user/:userId', optionalAuth, profileController.getPublicProfile);
 
-module.exports = router;
+export default router;
 

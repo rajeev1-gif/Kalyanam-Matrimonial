@@ -1,7 +1,9 @@
-const prisma = require('../config/db');
-const { successResponse, errorResponse } = require('../utils/response');
+import { Request, Response, NextFunction } from 'express';
+import prisma from '../config/db';
+import { successResponse, errorResponse } from '../utils/response';
+import { AuthenticatedRequest } from '../types';
 
-async function getDashboardAnalytics(req, res, next) {
+export async function getDashboardAnalytics(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
@@ -66,18 +68,18 @@ async function getDashboardAnalytics(req, res, next) {
   }
 }
 
-async function getUsers(req, res, next) {
+export async function getUsers(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
-    const { search, status, role, page = 1, limit = 15 } = req.query;
-    const pageNum = Math.max(1, parseInt(page));
-    const take = Math.min(50, Math.max(1, parseInt(limit)));
+    const { search, status, role, page = '1', limit = '15' } = req.query as any;
+    const pageNum = Math.max(1, parseInt(page as string));
+    const take = Math.min(50, Math.max(1, parseInt(limit as string)));
     const skip = (pageNum - 1) * take;
 
-    const where = {};
+    const where: any = {};
     if (status) where.status = status;
     if (role) where.role = role;
-    if (search && search.trim()) {
-      const q = search.trim();
+    if (search && (search as string).trim()) {
+      const q = (search as string).trim();
       where.OR = [
         { email: { contains: q, mode: 'insensitive' } },
         { mobile: { contains: q, mode: 'insensitive' } },
@@ -139,12 +141,12 @@ async function getUsers(req, res, next) {
   }
 }
 
-async function updateUserStatus(req, res, next) {
+export async function updateUserStatus(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
-    const { userId } = req.params;
+    const { userId } = req.params as any;
     const { status, role } = req.body;
 
-    const data = {};
+    const data: any = {};
     if (status) data.status = status;
     if (role) data.role = role;
 
@@ -170,12 +172,12 @@ async function updateUserStatus(req, res, next) {
   }
 }
 
-async function toggleProfileVerification(req, res, next) {
+export async function toggleProfileVerification(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
-    const { profileId } = req.params;
+    const { profileId } = req.params as any;
     const { isVerified, isVisible } = req.body;
 
-    const data = {};
+    const data: any = {};
     if (isVerified !== undefined) data.isVerified = isVerified;
     if (isVisible !== undefined) data.isVisible = isVisible;
 
@@ -190,7 +192,7 @@ async function toggleProfileVerification(req, res, next) {
   }
 }
 
-async function getReports(req, res, next) {
+export async function getReports(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const reports = await prisma.report.findMany({
       orderBy: { createdAt: 'desc' },
@@ -219,9 +221,9 @@ async function getReports(req, res, next) {
   }
 }
 
-async function updateReportStatus(req, res, next) {
+export async function updateReportStatus(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
-    const { reportId } = req.params;
+    const { reportId } = req.params as any;
     const { status } = req.body; // PENDING, REVIEWED, RESOLVED, DISMISSED
 
     const updated = await prisma.report.update({
@@ -235,12 +237,12 @@ async function updateReportStatus(req, res, next) {
   }
 }
 
-async function updatePlan(req, res, next) {
+export async function updatePlan(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
-    const { planId } = req.params;
+    const { planId } = req.params as any;
     const { price, interestLimit, profileViewLimit, contactViewLimit, isActive, features } = req.body;
 
-    const data = {};
+    const data: any = {};
     if (price !== undefined) data.price = parseFloat(price);
     if (interestLimit !== undefined) data.interestLimit = parseInt(interestLimit);
     if (profileViewLimit !== undefined) data.profileViewLimit = parseInt(profileViewLimit);
@@ -260,7 +262,7 @@ async function updatePlan(req, res, next) {
 }
 
 // Content management: Success stories, Testimonials, FAQs
-async function createSuccessStory(req, res, next) {
+export async function createSuccessStory(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const { groomName, brideName, weddingDate, story, couplePhoto, isFeatured } = req.body;
     const created = await prisma.successStory.create({
@@ -279,9 +281,9 @@ async function createSuccessStory(req, res, next) {
   }
 }
 
-async function deleteSuccessStory(req, res, next) {
+export async function deleteSuccessStory(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const { id } = req.params as any;
     await prisma.successStory.delete({ where: { id } });
     return successResponse(res, {}, 'Success story deleted');
   } catch (error) {
@@ -289,7 +291,7 @@ async function deleteSuccessStory(req, res, next) {
   }
 }
 
-async function createFaq(req, res, next) {
+export async function createFaq(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const { question, answer, category, orderIndex } = req.body;
     const created = await prisma.fAQ.create({
@@ -306,9 +308,9 @@ async function createFaq(req, res, next) {
   }
 }
 
-async function deleteFaq(req, res, next) {
+export async function deleteFaq(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const { id } = req.params as any;
     await prisma.fAQ.delete({ where: { id } });
     return successResponse(res, {}, 'FAQ deleted');
   } catch (error) {
@@ -316,17 +318,4 @@ async function deleteFaq(req, res, next) {
   }
 }
 
-module.exports = {
-  getDashboardAnalytics,
-  getUsers,
-  updateUserStatus,
-  toggleProfileVerification,
-  getReports,
-  updateReportStatus,
-  updatePlan,
-  createSuccessStory,
-  deleteSuccessStory,
-  createFaq,
-  deleteFaq,
-};
 

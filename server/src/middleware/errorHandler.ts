@@ -24,5 +24,5 @@ function errorHandler(err, req, res, next) {
   return errorResponse(res, message, statusCode);
 }
 
-module.exports = errorHandler;
+export default errorHandler;
 

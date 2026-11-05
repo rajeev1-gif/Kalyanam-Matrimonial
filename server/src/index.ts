@@ -1,27 +1,29 @@
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../.env'), override: true });
-const express = require('express');
-const http = require('http');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const { Server } = require('socket.io');
+import path from 'path';
+import dotenv from 'dotenv';
+dotenv.config({ path: path.join(__dirname, '../.env'), override: true });
 
-const errorHandler = require('./middleware/errorHandler');
-const setupChatSockets = require('./sockets/chatSocket');
+import express, { Request, Response } from 'express';
+import http from 'http';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import { Server } from 'socket.io';
+
+import errorHandler from './middleware/errorHandler';
+import setupChatSockets from './sockets/chatSocket';
 
 // Routes
-const authRoutes = require('./routes/authRoutes');
-const profileRoutes = require('./routes/profileRoutes');
-const searchRoutes = require('./routes/searchRoutes');
-const interestRoutes = require('./routes/interestRoutes');
-const shortlistRoutes = require('./routes/shortlistRoutes');
-const chatRoutes = require('./routes/chatRoutes');
-const notificationRoutes = require('./routes/notificationRoutes');
-const membershipRoutes = require('./routes/membershipRoutes');
-const safetyRoutes = require('./routes/safetyRoutes');
-const adminRoutes = require('./routes/adminRoutes');
-const publicRoutes = require('./routes/publicRoutes');
+import authRoutes from './routes/authRoutes';
+import profileRoutes from './routes/profileRoutes';
+import searchRoutes from './routes/searchRoutes';
+import interestRoutes from './routes/interestRoutes';
+import shortlistRoutes from './routes/shortlistRoutes';
+import chatRoutes from './routes/chatRoutes';
+import notificationRoutes from './routes/notificationRoutes';
+import membershipRoutes from './routes/membershipRoutes';
+import safetyRoutes from './routes/safetyRoutes';
+import adminRoutes from './routes/adminRoutes';
+import publicRoutes from './routes/publicRoutes';
 
 const app = express();
 const server = http.createServer(app);
@@ -54,7 +56,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Root welcome endpoint
-app.get('/', (req, res) => {
+app.get('/', (req: Request, res: Response) => {
   res.json({
     name: 'Kalyanam Matrimony API',
     status: 'online',
@@ -64,7 +66,7 @@ app.get('/', (req, res) => {
 });
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
+app.get('/api/health', (req: Request, res: Response) => {
   res.json({
     status: 'ok',
     service: 'Kalyanam Matrimony API',
@@ -98,9 +100,4 @@ process.on('uncaughtException', (err) => {
   console.error('⚠️ Uncaught Exception:', err);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('⚠️ Unhandled Rejection at:', promise, 'reason:', reason);
-});
-
-module.exports = { app, server };
-
+export default app;

@@ -1,7 +1,9 @@
-const prisma = require('../config/db');
-const { successResponse, errorResponse } = require('../utils/response');
+import { Response, NextFunction } from 'express';
+import prisma from '../config/db';
+import { successResponse, errorResponse } from '../utils/response';
+import { AuthenticatedRequest } from '../types';
 
-async function getConversations(req, res, next) {
+export async function getConversations(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const currentUserId = req.user.id;
 
@@ -68,10 +70,10 @@ async function getConversations(req, res, next) {
   }
 }
 
-async function getMessages(req, res, next) {
+export async function getMessages(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const currentUserId = req.user.id;
-    const { conversationId } = req.params;
+    const { conversationId } = req.params as any;
 
     const conversation = await prisma.conversation.findUnique({
       where: { id: conversationId },
@@ -136,7 +138,7 @@ async function getMessages(req, res, next) {
   }
 }
 
-async function sendMessage(req, res, next) {
+export async function sendMessage(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const currentUserId = req.user.id;
     const { conversationId, receiverId, content } = req.body;
@@ -241,7 +243,7 @@ async function sendMessage(req, res, next) {
   }
 }
 
-async function getUnreadCount(req, res, next) {
+export async function getUnreadCount(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const currentUserId = req.user.id;
 
@@ -262,10 +264,4 @@ async function getUnreadCount(req, res, next) {
   }
 }
 
-module.exports = {
-  getConversations,
-  getMessages,
-  sendMessage,
-  getUnreadCount,
-};
 

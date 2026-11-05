@@ -1,7 +1,8 @@
-const prisma = require('../config/db');
-const { successResponse } = require('../utils/response');
+import { Request, Response, NextFunction } from 'express';
+import prisma from '../config/db';
+import { successResponse } from '../utils/response';
 
-async function getSuccessStories(req, res, next) {
+export async function getSuccessStories(req: Request, res: Response, next: NextFunction) {
   try {
     const stories = await prisma.successStory.findMany({
       where: { isActive: true },
@@ -13,7 +14,7 @@ async function getSuccessStories(req, res, next) {
   }
 }
 
-async function getTestimonials(req, res, next) {
+export async function getTestimonials(req: Request, res: Response, next: NextFunction) {
   try {
     const testimonials = await prisma.testimonial.findMany({
       where: { isActive: true },
@@ -25,7 +26,7 @@ async function getTestimonials(req, res, next) {
   }
 }
 
-async function getFaqs(req, res, next) {
+export async function getFaqs(req: Request, res: Response, next: NextFunction) {
   try {
     const faqs = await prisma.fAQ.findMany({
       where: { isActive: true },
@@ -37,7 +38,7 @@ async function getFaqs(req, res, next) {
   }
 }
 
-async function getHomeStats(req, res, next) {
+export async function getHomeStats(req: Request, res: Response, next: NextFunction) {
   try {
     const [profilesCount, storiesCount] = await Promise.all([
       prisma.profile.count(),
@@ -55,10 +56,4 @@ async function getHomeStats(req, res, next) {
   }
 }
 
-module.exports = {
-  getSuccessStories,
-  getTestimonials,
-  getFaqs,
-  getHomeStats,
-};
 

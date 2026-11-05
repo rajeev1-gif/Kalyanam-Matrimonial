@@ -1,7 +1,8 @@
-const express = require('express');
+import express from 'express';
+import * as interestController from '../controllers/interestController';
+import { authenticate } from '../middleware/auth';
+
 const router = express.Router();
-const interestController = require('../controllers/interestController');
-const { authenticate } = require('../middleware/auth');
 
 router.use(authenticate);
 
@@ -14,5 +15,5 @@ router.get('/received', interestController.getReceivedInterests);
 router.get('/sent', interestController.getSentInterests);
 router.get('/connections', interestController.getAcceptedConnections);
 
-module.exports = router;
+export default router;
 

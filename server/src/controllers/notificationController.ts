@@ -1,7 +1,9 @@
-const prisma = require('../config/db');
-const { successResponse, errorResponse } = require('../utils/response');
+import { Response, NextFunction } from 'express';
+import prisma from '../config/db';
+import { successResponse, errorResponse } from '../utils/response';
+import { AuthenticatedRequest } from '../types';
 
-async function getNotifications(req, res, next) {
+export async function getNotifications(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const currentUserId = req.user.id;
 
@@ -21,9 +23,9 @@ async function getNotifications(req, res, next) {
   }
 }
 
-async function markAsRead(req, res, next) {
+export async function markAsRead(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
-    const { id } = req.params;
+    const { id } = req.params as any;
     const currentUserId = req.user.id;
 
     await prisma.notification.updateMany({
@@ -37,7 +39,7 @@ async function markAsRead(req, res, next) {
   }
 }
 
-async function markAllAsRead(req, res, next) {
+export async function markAllAsRead(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const currentUserId = req.user.id;
 
@@ -52,9 +54,4 @@ async function markAllAsRead(req, res, next) {
   }
 }
 
-module.exports = {
-  getNotifications,
-  markAsRead,
-  markAllAsRead,
-};
 

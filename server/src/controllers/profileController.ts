@@ -1,7 +1,9 @@
-const prisma = require('../config/db');
-const { successResponse, errorResponse } = require('../utils/response');
+import { Request, Response, NextFunction } from 'express';
+import prisma from '../config/db';
+import { successResponse, errorResponse } from '../utils/response';
+import { AuthenticatedRequest } from '../types';
 
-function calculateCompletionPercentage(profile) {
+export function calculateCompletionPercentage(profile: any) {
   let score = 0;
   // Basic Info (20%)
   if (profile.fullName && profile.gender && profile.dateOfBirth && profile.height) score += 20;
@@ -27,7 +29,7 @@ function calculateCompletionPercentage(profile) {
   return Math.min(100, score);
 }
 
-async function getMyProfile(req, res, next) {
+export async function getMyProfile(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const profile = await prisma.profile.findUnique({
       where: { userId: req.user.id },
@@ -52,7 +54,7 @@ async function getMyProfile(req, res, next) {
   }
 }
 
-async function updateProfile(req, res, next) {
+export async function updateProfile(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const userId = req.user.id;
     const {
@@ -87,7 +89,7 @@ async function updateProfile(req, res, next) {
 
     const updatedProfile = await prisma.$transaction(async (tx) => {
       // 1. Basic & About Me
-      const profileUpdateData = {};
+      const profileUpdateData: any = {};
       if (basicInfo?.fullName) profileUpdateData.fullName = basicInfo.fullName;
       if (basicInfo?.gender) profileUpdateData.gender = basicInfo.gender.toUpperCase();
       if (basicInfo?.dateOfBirth) profileUpdateData.dateOfBirth = new Date(basicInfo.dateOfBirth);
@@ -307,7 +309,7 @@ async function updateProfile(req, res, next) {
   }
 }
 
-async function uploadPhoto(req, res, next) {
+export async function uploadPhoto(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const userId = req.user.id;
     let photoUrl = '';
@@ -359,9 +361,9 @@ async function uploadPhoto(req, res, next) {
   }
 }
 
-async function deletePhoto(req, res, next) {
+export async function deletePhoto(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
-    const { photoId } = req.params;
+    const { photoId } = req.params as any;
     const userId = req.user.id;
 
     const profile = await prisma.profile.findUnique({
@@ -395,9 +397,9 @@ async function deletePhoto(req, res, next) {
   }
 }
 
-async function setPrimaryPhoto(req, res, next) {
+export async function setPrimaryPhoto(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
-    const { photoId } = req.params;
+    const { photoId } = req.params as any;
     const userId = req.user.id;
 
     const profile = await prisma.profile.findUnique({
@@ -427,9 +429,9 @@ async function setPrimaryPhoto(req, res, next) {
   }
 }
 
-async function getPublicProfile(req, res, next) {
+export async function getPublicProfile(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
-    const { userId } = req.params;
+    const { userId } = req.params as any;
     const viewerId = req.user?.id;
 
     const targetUser = await prisma.user.findUnique({
@@ -569,12 +571,4 @@ async function getPublicProfile(req, res, next) {
   }
 }
 
-module.exports = {
-  getMyProfile,
-  updateProfile,
-  uploadPhoto,
-  deletePhoto,
-  setPrimaryPhoto,
-  getPublicProfile,
-};
 

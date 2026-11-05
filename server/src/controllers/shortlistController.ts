@@ -1,7 +1,9 @@
-const prisma = require('../config/db');
-const { successResponse, errorResponse } = require('../utils/response');
+import { Response, NextFunction } from 'express';
+import prisma from '../config/db';
+import { successResponse, errorResponse } from '../utils/response';
+import { AuthenticatedRequest } from '../types';
 
-async function toggleShortlist(req, res, next) {
+export async function toggleShortlist(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const currentUserId = req.user.id;
     const { targetUserId } = req.body;
@@ -54,7 +56,7 @@ async function toggleShortlist(req, res, next) {
   }
 }
 
-async function getMyShortlists(req, res, next) {
+export async function getMyShortlists(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const currentUserId = req.user.id;
 
@@ -92,7 +94,7 @@ async function getMyShortlists(req, res, next) {
   }
 }
 
-async function getProfileViews(req, res, next) {
+export async function getProfileViews(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const currentUserId = req.user.id;
     const { type = 'who_viewed_me' } = req.query; // 'who_viewed_me' or 'viewed_by_me'
@@ -176,9 +178,4 @@ async function getProfileViews(req, res, next) {
   }
 }
 
-module.exports = {
-  toggleShortlist,
-  getMyShortlists,
-  getProfileViews,
-};
 

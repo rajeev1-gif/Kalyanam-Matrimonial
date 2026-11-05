@@ -1,7 +1,8 @@
-const express = require('express');
+import express from 'express';
+import * as adminController from '../controllers/adminController';
+import { authenticate, requireAdmin } from '../middleware/auth';
+
 const router = express.Router();
-const adminController = require('../controllers/adminController');
-const { authenticate, requireAdmin } = require('../middleware/auth');
 
 router.use(authenticate, requireAdmin);
 
@@ -19,5 +20,5 @@ router.delete('/success-stories/:id', adminController.deleteSuccessStory);
 router.post('/faqs', adminController.createFaq);
 router.delete('/faqs/:id', adminController.deleteFaq);
 
-module.exports = router;
+export default router;
 

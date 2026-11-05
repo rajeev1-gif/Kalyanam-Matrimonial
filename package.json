@@ -8,10 +8,13 @@
     "install:all": "npm run server:install && npm run client:install",
     "db:push": "cd server && npx prisma db push",
     "db:seed": "cd server && node prisma/seed.js",
-    "server": "cd server && node src/index.js",
+    "server": "cd server && npm run dev",
     "client": "cd client && npm run dev",
-    "test:api": "node test_full_suite.js",
-    "build:client": "cd client && npm run build"
+    "build:server": "cd server && npm run build",
+    "build:client": "cd client && npm run build",
+    "build:all": "npm run build:server && npm run build:client",
+    "typecheck": "cd client && npx tsc --noEmit && cd ../server && npx tsc --noEmit",
+    "test:api": "node test_full_suite.js"
   }
 }
 

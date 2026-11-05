@@ -1,7 +1,8 @@
-const express = require('express');
+import express from 'express';
+import * as safetyController from '../controllers/safetyController';
+import { authenticate } from '../middleware/auth';
+
 const router = express.Router();
-const safetyController = require('../controllers/safetyController');
-const { authenticate } = require('../middleware/auth');
 
 router.use(authenticate);
 
@@ -10,5 +11,5 @@ router.post('/block', safetyController.blockUser);
 router.delete('/block/:blockedUserId', safetyController.unblockUser);
 router.get('/blocked', safetyController.getBlockedUsers);
 
-module.exports = router;
+export default router;
 

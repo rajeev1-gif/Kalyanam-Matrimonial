@@ -1,7 +1,9 @@
-const prisma = require('../config/db');
-const { successResponse, errorResponse } = require('../utils/response');
+import { Response, NextFunction } from 'express';
+import prisma from '../config/db';
+import { successResponse, errorResponse } from '../utils/response';
+import { AuthenticatedRequest } from '../types';
 
-async function reportUser(req, res, next) {
+export async function reportUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const reporterId = req.user.id;
     const { reportedUserId, reason, description } = req.body;
@@ -30,7 +32,7 @@ async function reportUser(req, res, next) {
   }
 }
 
-async function blockUser(req, res, next) {
+export async function blockUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const blockerId = req.user.id;
     const { blockedUserId, reason } = req.body;
@@ -64,10 +66,10 @@ async function blockUser(req, res, next) {
   }
 }
 
-async function unblockUser(req, res, next) {
+export async function unblockUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const blockerId = req.user.id;
-    const { blockedUserId } = req.params;
+    const { blockedUserId } = req.params as any;
 
     await prisma.block.deleteMany({
       where: {
@@ -82,7 +84,7 @@ async function unblockUser(req, res, next) {
   }
 }
 
-async function getBlockedUsers(req, res, next) {
+export async function getBlockedUsers(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const blockerId = req.user.id;
 
@@ -118,10 +120,4 @@ async function getBlockedUsers(req, res, next) {
   }
 }
 
-module.exports = {
-  reportUser,
-  blockUser,
-  unblockUser,
-  getBlockedUsers,
-};
 

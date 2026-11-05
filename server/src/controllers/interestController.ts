@@ -1,7 +1,9 @@
-const prisma = require('../config/db');
-const { successResponse, errorResponse } = require('../utils/response');
+import { Response, NextFunction } from 'express';
+import prisma from '../config/db';
+import { successResponse, errorResponse } from '../utils/response';
+import { AuthenticatedRequest } from '../types';
 
-async function sendInterest(req, res, next) {
+export async function sendInterest(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const senderId = req.user.id;
     const { receiverId, message } = req.body;
@@ -129,10 +131,10 @@ async function sendInterest(req, res, next) {
   }
 }
 
-async function acceptInterest(req, res, next) {
+export async function acceptInterest(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const currentUserId = req.user.id;
-    const { interestId } = req.params;
+    const { interestId } = req.params as any;
 
     const interest = await prisma.interest.findUnique({
       where: { id: interestId }
@@ -179,10 +181,10 @@ async function acceptInterest(req, res, next) {
   }
 }
 
-async function rejectInterest(req, res, next) {
+export async function rejectInterest(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const currentUserId = req.user.id;
-    const { interestId } = req.params;
+    const { interestId } = req.params as any;
 
     const interest = await prisma.interest.findUnique({
       where: { id: interestId }
@@ -207,10 +209,10 @@ async function rejectInterest(req, res, next) {
   }
 }
 
-async function withdrawInterest(req, res, next) {
+export async function withdrawInterest(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const currentUserId = req.user.id;
-    const { interestId } = req.params;
+    const { interestId } = req.params as any;
 
     const interest = await prisma.interest.findUnique({
       where: { id: interestId }
@@ -238,7 +240,7 @@ async function withdrawInterest(req, res, next) {
   }
 }
 
-async function getReceivedInterests(req, res, next) {
+export async function getReceivedInterests(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const currentUserId = req.user.id;
 
@@ -272,7 +274,7 @@ async function getReceivedInterests(req, res, next) {
   }
 }
 
-async function getSentInterests(req, res, next) {
+export async function getSentInterests(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const currentUserId = req.user.id;
 
@@ -305,7 +307,7 @@ async function getSentInterests(req, res, next) {
   }
 }
 
-async function getAcceptedConnections(req, res, next) {
+export async function getAcceptedConnections(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const currentUserId = req.user.id;
 
@@ -371,13 +373,4 @@ async function getAcceptedConnections(req, res, next) {
   }
 }
 
-module.exports = {
-  sendInterest,
-  acceptInterest,
-  rejectInterest,
-  withdrawInterest,
-  getReceivedInterests,
-  getSentInterests,
-  getAcceptedConnections,
-};
 

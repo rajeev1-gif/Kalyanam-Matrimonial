@@ -78,5 +78,5 @@ function setupChatSockets(io) {
   });
 }
 
-module.exports = setupChatSockets;
+export default setupChatSockets;
 

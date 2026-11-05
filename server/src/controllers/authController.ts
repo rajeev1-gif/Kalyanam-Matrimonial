@@ -1,16 +1,18 @@
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const prisma = require('../config/db');
-const { successResponse, errorResponse } = require('../utils/response');
+import { Request, Response, NextFunction } from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import prisma from '../config/db';
+import { successResponse, errorResponse } from '../utils/response';
+import { AuthenticatedRequest } from '../types';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'matrimonial_jwt_super_secret_key_2026_indian_wedding';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
-function generateToken(userId, role) {
-  return jwt.sign({ userId, role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+export function generateToken(userId: string, role: string) {
+  return jwt.sign({ userId, role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as any });
 }
 
-async function register(req, res, next) {
+export async function register(req: Request, res: Response, next: NextFunction) {
   try {
     const {
       fullName,
@@ -186,7 +188,7 @@ async function register(req, res, next) {
   }
 }
 
-async function login(req, res, next) {
+export async function login(req: Request, res: Response, next: NextFunction) {
   try {
     const { identifier, password } = req.body; // identifier can be email or mobile
 
@@ -261,7 +263,7 @@ async function login(req, res, next) {
   }
 }
 
-async function getMe(req, res, next) {
+export async function getMe(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
@@ -300,7 +302,7 @@ async function getMe(req, res, next) {
   }
 }
 
-async function forgotPassword(req, res, next) {
+export async function forgotPassword(req: Request, res: Response, next: NextFunction) {
   try {
     const { email } = req.body;
     if (!email) {
@@ -325,14 +327,14 @@ async function forgotPassword(req, res, next) {
   }
 }
 
-async function resetPassword(req, res, next) {
+export async function resetPassword(req: Request, res: Response, next: NextFunction) {
   try {
     const { token, newPassword } = req.body;
     if (!token || !newPassword || newPassword.length < 6) {
       return errorResponse(res, 'Valid reset token and new password (min 6 chars) are required', 400);
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded: any = jwt.verify(token, JWT_SECRET);
     if (decoded.purpose !== 'reset-password') {
       return errorResponse(res, 'Invalid reset token', 400);
     }
@@ -349,7 +351,7 @@ async function resetPassword(req, res, next) {
   }
 }
 
-async function updatePassword(req, res, next) {
+export async function updatePassword(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const { currentPassword, newPassword } = req.body;
     if (!currentPassword || !newPassword || newPassword.length < 6) {
@@ -374,12 +376,4 @@ async function updatePassword(req, res, next) {
   }
 }
 
-module.exports = {
-  register,
-  login,
-  getMe,
-  forgotPassword,
-  resetPassword,
-  updatePassword,
-};
 
