@@ -9,6 +9,7 @@ import {
   Circle,
   Clock,
   Sparkles,
+  ChevronLeft,
 } from 'lucide-react';
 import { chatService } from '../../services/chatService';
 import { useAuth } from '../../context/AuthContext';
@@ -20,17 +21,17 @@ export default function MessagesPage() {
   const { socket, onlineUsers } = useSocket();
   const { refreshNotifications } = useNotifications();
 
-  const [conversations, setConversations] = useState([]);
-  const [activeConversation, setActiveConversation] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [partnerInfo, setPartnerInfo] = useState(null);
-  const [inputText, setInputText] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [loadingMessages, setLoadingMessages] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [activeConversation, setActiveConversation] = useState<any | null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [partnerInfo, setPartnerInfo] = useState<any | null>(null);
+  const [inputText, setInputText] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(true);
+  const [loadingMessages, setLoadingMessages] = useState<boolean>(false);
+  const [isTyping, setIsTyping] = useState<boolean>(false);
 
-  const messagesEndRef = useRef(null);
-  const typingTimeoutRef = useRef(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<any>(null);
 
   // Load conversation list
   const fetchConversations = async () => {
@@ -96,20 +97,20 @@ export default function MessagesPage() {
   useEffect(() => {
     if (!socket) return;
 
-    const handleNewMessage = (msg) => {
+    const handleNewMessage = (msg: any) => {
       if (activeConversation && msg.conversationId === activeConversation.id) {
         setMessages((prev) => [...prev, msg]);
       }
       fetchConversations();
     };
 
-    const handlePartnerTyping = ({ conversationId }) => {
+    const handlePartnerTyping = ({ conversationId }: { conversationId: string }) => {
       if (activeConversation && conversationId === activeConversation.id) {
         setIsTyping(true);
       }
     };
 
-    const handlePartnerStoppedTyping = ({ conversationId }) => {
+    const handlePartnerStoppedTyping = ({ conversationId }: { conversationId: string }) => {
       if (activeConversation && conversationId === activeConversation.id) {
         setIsTyping(false);
       }
@@ -127,7 +128,7 @@ export default function MessagesPage() {
   }, [socket, activeConversation]);
 
   // Handle typing input
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputText(e.target.value);
     if (!socket || !activeConversation) return;
 
@@ -145,7 +146,7 @@ export default function MessagesPage() {
     }, 2000);
   };
 
-  const handleSendMessage = async (e) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || !activeConversation) return;
 
@@ -173,8 +174,11 @@ export default function MessagesPage() {
     <div className="bg-white rounded-3xl border border-gold-200/90 shadow-xl overflow-hidden h-[calc(100vh-140px)] flex flex-col md:flex-row">
       
       {/* LEFT: CONVERSATION LIST */}
-      <div className="w-full md:w-80 border-r border-gold-200/80 flex flex-col shrink-0 bg-ivory-50/50">
-        
+      <div
+        className={`w-full md:w-80 border-r border-gold-200/80 flex flex-col shrink-0 bg-ivory-50/50 ${
+          activeConversation ? 'hidden md:flex' : 'flex'
+        } flex-1 md:flex-initial h-full`}
+      >
         <div className="p-4 border-b border-gold-200/80 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-primary-800" />
@@ -248,19 +252,32 @@ export default function MessagesPage() {
       </div>
 
       {/* RIGHT: CHAT WINDOW */}
-      <div className="flex-1 flex flex-col justify-between bg-white">
-        
+      <div
+        className={`flex-1 flex flex-col justify-between bg-white ${
+          !activeConversation ? 'hidden md:flex' : 'flex'
+        } h-full`}
+      >
         {activeConversation ? (
           <>
             {/* Chat Top Header */}
-            <div className="p-4 px-6 border-b border-gold-200/80 flex items-center justify-between bg-white shadow-sm">
+            <div className="p-4 px-4 sm:px-6 border-b border-gold-200/80 flex items-center justify-between bg-white shadow-xs">
               <div className="flex items-center gap-3">
-                <div className="relative w-10 h-10 rounded-full overflow-hidden bg-ivory-200 border border-gold-300">
+                {/* Mobile Back Button */}
+                <button
+                  type="button"
+                  onClick={() => setActiveConversation(null)}
+                  className="md:hidden -ml-1 p-1.5 rounded-xl border border-gold-300/80 text-charcoal-700 hover:bg-gold-50 flex items-center justify-center transition"
+                  title="Back to conversations"
+                >
+                  <ChevronLeft className="w-5 h-5 text-primary-800" />
+                </button>
+
+                <div className="relative w-10 h-10 rounded-full overflow-hidden bg-ivory-200 border border-gold-300 shrink-0">
                   {partnerInfo?.photo ? (
                     <img src={partnerInfo.photo} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center font-bold text-primary-800 text-xs">
-                      {partnerInfo?.fullName?.[0] || 'M'}
+                      {partnerInfo?.fullName?.[0] || activeConversation.partnerName?.[0] || 'M'}
                     </div>
                   )}
                   {isPartnerOnline && (
@@ -268,7 +285,7 @@ export default function MessagesPage() {
                   )}
                 </div>
                 <div>
-                  <h3 className="font-serif font-bold text-sm text-charcoal-900">
+                  <h3 className="font-serif font-bold text-sm text-charcoal-900 truncate max-w-[160px] sm:max-w-xs">
                     {partnerInfo?.fullName || activeConversation.partnerName}
                   </h3>
                   <span className="text-[11px] text-gray-500 flex items-center gap-1">
@@ -280,14 +297,14 @@ export default function MessagesPage() {
 
               <Link
                 to={`/profile/${activeConversation.partnerId}`}
-                className="text-xs font-semibold text-primary-800 hover:text-primary-950 px-3 py-1.5 rounded-lg border border-gold-300 hover:bg-gold-50 transition"
+                className="text-xs font-semibold text-primary-800 hover:text-primary-950 px-3 py-1.5 rounded-lg border border-gold-300 hover:bg-gold-50 transition shrink-0"
               >
-                View Full Profile
+                View Profile
               </Link>
             </div>
 
             {/* Messages Scroll View */}
-            <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-gradient-to-b from-ivory-100/50 to-white">
+            <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-3.5 bg-gradient-to-b from-ivory-100/60 to-white">
               {loadingMessages ? (
                 <div className="text-center py-12 text-xs text-gray-400">Loading chat history...</div>
               ) : messages.length === 0 ? (
@@ -302,29 +319,54 @@ export default function MessagesPage() {
                 </div>
               ) : (
                 messages.map((m) => {
-                  const isMine = m.senderId === user.id;
+                  const isMine = m.senderId === user?.id;
 
                   return (
                     <div
                       key={m.id}
-                      className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}
+                      className={`flex flex-col ${isMine ? 'items-end' : 'items-start'} animate-fadeIn`}
                     >
+                      {/* Message Bubble Container */}
                       <div
-                        className={`max-w-md p-3.5 rounded-2xl text-xs leading-relaxed shadow-sm ${
+                        className={`max-w-[85%] sm:max-w-md p-3.5 rounded-2xl text-xs leading-relaxed shadow-xs transition-all duration-150 ${
                           isMine
-                            ? 'bg-gradient-to-r from-primary-850 to-primary-950 text-white rounded-br-none'
-                            : 'bg-ivory-50 text-charcoal-900 border border-gold-200/80 rounded-bl-none'
+                            ? 'bg-[#FCE8ED] text-[#292929] border border-[#F7C6D2] rounded-br-xs hover:border-[#E8A5B6]'
+                            : 'bg-[#FFF7E8] text-[#292929] border border-[#F3E2C3] rounded-bl-xs hover:border-[#DEC596]'
                         }`}
+                        style={{
+                          backgroundColor: isMine ? '#FCE8ED' : '#FFF7E8',
+                          color: '#292929',
+                        }}
                       >
-                        <p>{m.content}</p>
-                        <div
-                          className={`flex items-center justify-end gap-1 text-[9px] mt-1 ${
-                            isMine ? 'text-primary-200' : 'text-gray-400'
-                          }`}
+                        {/* Explicit High-Contrast Message Content */}
+                        <p
+                          className="text-[#292929] text-xs font-normal leading-relaxed break-words whitespace-pre-wrap select-text"
+                          style={{ color: '#292929' }}
                         >
-                          <span>{new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          {m.content}
+                        </p>
+
+                        {/* Timestamp & Delivery/Read Status */}
+                        <div
+                          className="flex items-center justify-end gap-1.5 text-[10px] mt-1.5 select-none"
+                          style={{ color: '#777777' }}
+                        >
+                          <span
+                            className="font-medium text-[#777777]"
+                            style={{ color: '#777777' }}
+                          >
+                            {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
                           {isMine && (
-                            m.isRead ? <CheckCheck className="w-3 h-3 text-gold-300" /> : <Check className="w-3 h-3" />
+                            m.isRead ? (
+                              <span title="Read">
+                                <CheckCheck className="w-3.5 h-3.5 text-primary-700 stroke-[2.2]" />
+                              </span>
+                            ) : (
+                              <span title="Delivered">
+                                <Check className="w-3.5 h-3.5 text-[#777777] stroke-[2.2]" />
+                              </span>
+                            )
                           )}
                         </div>
                       </div>
@@ -335,11 +377,11 @@ export default function MessagesPage() {
 
               {/* Typing indicator */}
               {isTyping && (
-                <div className="flex items-center gap-1.5 text-xs text-gray-500 italic bg-gold-50 px-3 py-1 rounded-full w-fit">
-                  <span className="w-1.5 h-1.5 bg-gold-500 rounded-full animate-bounce"></span>
-                  <span className="w-1.5 h-1.5 bg-gold-500 rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                  <span className="w-1.5 h-1.5 bg-gold-500 rounded-full animate-bounce [animation-delay:0.4s]"></span>
-                  <span className="ml-1 text-[11px]">partner is typing...</span>
+                <div className="flex items-center gap-1.5 text-xs text-gray-600 italic bg-[#FFF7E8] border border-[#F3E2C3] px-3.5 py-1.5 rounded-full w-fit shadow-xs">
+                  <span className="w-1.5 h-1.5 bg-gold-600 rounded-full animate-bounce"></span>
+                  <span className="w-1.5 h-1.5 bg-gold-600 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                  <span className="w-1.5 h-1.5 bg-gold-600 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                  <span className="ml-1 text-[11px] text-charcoal-800 font-medium">partner is typing...</span>
                 </div>
               )}
 
@@ -353,12 +395,12 @@ export default function MessagesPage() {
                 placeholder="Type your message with respect and kindness..."
                 value={inputText}
                 onChange={handleInputChange}
-                className="flex-1 h-12 px-4 text-xs rounded-2xl border border-gray-300 focus:outline-none focus:border-primary-700 shadow-sm"
+                className="flex-1 h-12 px-4 text-xs rounded-2xl border border-gray-300 focus:outline-none focus:border-primary-700 text-charcoal-900 placeholder:text-gray-400 shadow-xs"
               />
               <button
                 type="submit"
                 disabled={!inputText.trim()}
-                className="w-12 h-12 rounded-2xl bg-gradient-to-r from-primary-800 to-primary-950 text-white flex items-center justify-center shadow-rose-glow hover:shadow-lg disabled:opacity-40 transition"
+                className="w-12 h-12 rounded-2xl bg-gradient-to-r from-primary-800 to-primary-950 text-white flex items-center justify-center shadow-rose-glow hover:shadow-lg disabled:opacity-40 transition cursor-pointer disabled:cursor-not-allowed shrink-0"
               >
                 <Send className="w-4 h-4 text-gold-300" />
               </button>
@@ -379,4 +421,3 @@ export default function MessagesPage() {
     </div>
   );
 }
-

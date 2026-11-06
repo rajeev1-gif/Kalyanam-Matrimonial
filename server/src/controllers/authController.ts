@@ -190,19 +190,35 @@ export async function register(req: Request, res: Response, next: NextFunction) 
 
 export async function login(req: Request, res: Response, next: NextFunction) {
   try {
-    const { identifier, password } = req.body; // identifier can be email or mobile
+    const { identifier, email, mobile, password } = req.body;
+    const rawIdentifier = (identifier || email || mobile || '').toString().trim();
 
-    if (!identifier || !password) {
+    if (!rawIdentifier || !password || typeof password !== 'string' || !password.trim()) {
       return errorResponse(res, 'Email/Mobile and Password are required', 400);
     }
 
-    const cleanIdentifier = identifier.trim().toLowerCase();
+    const cleanIdentifier = rawIdentifier.toLowerCase();
+    const digitsOnly = rawIdentifier.replace(/\D/g, '');
+
+    const mobileCandidates = Array.from(
+      new Set(
+        [
+          rawIdentifier,
+          cleanIdentifier,
+          digitsOnly,
+          digitsOnly.length === 10 ? `+91${digitsOnly}` : '',
+          digitsOnly.length === 10 ? `0${digitsOnly}` : '',
+          digitsOnly.length === 12 && digitsOnly.startsWith('91') ? `+${digitsOnly}` : '',
+          digitsOnly.length > 10 ? digitsOnly.slice(-10) : '',
+        ].filter(Boolean)
+      )
+    );
 
     const user = await prisma.user.findFirst({
       where: {
         OR: [
           { email: cleanIdentifier },
-          { mobile: cleanIdentifier }
+          { mobile: { in: mobileCandidates } },
         ]
       },
       include: {
@@ -226,18 +242,41 @@ export async function login(req: Request, res: Response, next: NextFunction) {
       }
     });
 
+    // Temporary development investigation logs (without logging passwords or password hashes)
+    const dbInfo: any = await prisma.$queryRawUnsafe(
+      'SELECT current_database() as db, inet_server_port() as port, inet_server_addr() as addr;'
+    ).catch(() => [{ db: 'unknown', port: 'unknown', addr: 'unknown' }]);
+
+    console.log('\n================== [DEV LOGIN INVESTIGATION] ==================');
+    console.log(`[4. Database Connection] Connected DB: "${dbInfo[0]?.db}", Port: ${dbInfo[0]?.port}, Address: ${dbInfo[0]?.addr}`);
+    console.log(`[Login Attempt] Identifier received: "${cleanIdentifier}"`);
+    console.log(`[1. Prisma User Search] Result: ${user ? `FOUND (User ID: ${user.id}, Email: ${user.email}, Mobile: ${user.mobile})` : 'NOT FOUND (null)'}`);
+
     if (!user) {
+      console.log(`[Exact Reason for 401] Prisma did NOT find user "${cleanIdentifier}" in connected database "${dbInfo[0]?.db}" on port ${dbInfo[0]?.port}.`);
+      console.log('=================================================================\n');
       return errorResponse(res, 'Invalid email or password', 401);
     }
 
+    console.log(`[2. User Status Check] Status: "${user.status}", isActive: ${user.status === 'ACTIVE'}`);
+
     if (user.status === 'SUSPENDED') {
+      console.log(`[Exact Reason for 403] User account is SUSPENDED.`);
+      console.log('=================================================================\n');
       return errorResponse(res, 'Your account is suspended. Please contact customer support.', 403);
     }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
+    console.log(`[3. Password Verification] bcrypt.compare() result: ${isMatch}`);
+
     if (!isMatch) {
+      console.log(`[Exact Reason for 401] Password mismatch: bcrypt.compare() returned false against stored bcrypt hash.`);
+      console.log('=================================================================\n');
       return errorResponse(res, 'Invalid email or password', 401);
     }
+
+    console.log(`[Login Success] Authentication passed for User ID: ${user.id}`);
+    console.log('=================================================================\n');
 
     const token = generateToken(user.id, user.role);
 

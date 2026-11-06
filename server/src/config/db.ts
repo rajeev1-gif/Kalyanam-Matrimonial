@@ -4,9 +4,7 @@ import { PrismaClient } from '@prisma/client';
 
 dotenv.config({ path: path.join(__dirname, '../../.env'), override: true });
 
-const dbUrl = (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('5432'))
-  ? process.env.DATABASE_URL
-  : 'postgresql://postgres@127.0.0.1:5432/matrimonial_db?schema=public';
+const dbUrl = process.env.DATABASE_URL || 'postgresql://postgres:pass@123@localhost:5432/matrimonial_db?schema=public';
 
 export const prisma = new PrismaClient({
   datasources: {

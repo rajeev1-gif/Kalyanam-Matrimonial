@@ -235,3 +235,4 @@ export default function ProfileCard({ profile, onInterestSent, onShortlistToggle
     </div>
   );
 }
+

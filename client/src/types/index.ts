@@ -56,6 +56,7 @@ export interface AuthState {
 }
 
 export interface LoginRequest {
+  identifier?: string;
   email?: string;
   mobile?: string;
   password?: string;
@@ -303,3 +304,4 @@ export interface Notification {
   isRead: boolean;
   createdAt: string;
 }
+
