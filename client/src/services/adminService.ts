@@ -16,6 +16,21 @@ export const adminService = {
     api.put(`/admin/reports/${reportId}/status`, { status }),
   updatePlan: (planId: string, data: any): Promise<ApiResponse<any>> => 
     api.put(`/admin/plans/${planId}`, data),
+  
+  // Membership Management (Phase 4)
+  getMemberships: (params?: any): Promise<ApiResponse<any>> =>
+    api.get('/admin/memberships', { params }),
+  getMembershipById: (id: string): Promise<ApiResponse<any>> =>
+    api.get(`/admin/memberships/${id}`),
+  getUserMembershipHistory: (userId: string): Promise<ApiResponse<any>> =>
+    api.get(`/admin/memberships/users/${userId}/history`),
+  grantMembership: (data: { userId: string; planCode: string; duration?: number | string; isUnlimited?: boolean; reason: string }): Promise<ApiResponse<any>> =>
+    api.post('/admin/memberships/grant', data),
+  extendMembership: (id: string, data: { additionalDays: number; reason: string }): Promise<ApiResponse<any>> =>
+    api.patch(`/admin/memberships/${id}/extend`, data),
+  revokeMembership: (id: string, data: { revocationReason: string }): Promise<ApiResponse<any>> =>
+    api.patch(`/admin/memberships/${id}/revoke`, data),
+
   createSuccessStory: (data: any): Promise<ApiResponse<any>> => 
     api.post('/admin/success-stories', data),
   deleteSuccessStory: (id: string): Promise<ApiResponse<any>> => 

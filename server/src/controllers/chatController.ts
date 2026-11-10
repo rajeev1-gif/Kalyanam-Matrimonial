@@ -2,6 +2,14 @@ import { Response, NextFunction } from 'express';
 import prisma from '../config/db';
 import { successResponse, errorResponse } from '../utils/response';
 import { AuthenticatedRequest } from '../types';
+import { getUserEntitlement } from '../services/entitlementService';
+import {
+  reserveQuotaAndCreateMessage,
+  getDailyUsage,
+  DailyLimitReachedError,
+} from '../services/chatUsageService';
+
+export { DailyLimitReachedError };
 
 export async function getConversations(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
@@ -138,106 +146,165 @@ export async function getMessages(req: AuthenticatedRequest, res: Response, next
   }
 }
 
+/**
+ * Shared core business logic for sending a message with atomic quota reservation.
+ * Reused identically by both REST API and Socket.IO handlers.
+ */
+export async function sendMessageCore(params: {
+  senderId: string;
+  senderName?: string;
+  conversationId?: string;
+  receiverId?: string;
+  content: string;
+  io?: any;
+}) {
+  const { senderId, senderName, conversationId, receiverId, content, io } = params;
+
+  if (!content || !content.trim()) {
+    const err: any = new Error('Message text cannot be empty');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  let targetConvId = conversationId;
+  let targetReceiverId = receiverId;
+
+  if (targetConvId) {
+    const conv = await prisma.conversation.findUnique({ where: { id: targetConvId } });
+    if (!conv) {
+      const err: any = new Error('Conversation not found');
+      err.statusCode = 404;
+      throw err;
+    }
+    if (conv.user1Id !== senderId && conv.user2Id !== senderId) {
+      const err: any = new Error('Unauthorized to send messages in this conversation');
+      err.statusCode = 403;
+      throw err;
+    }
+    targetReceiverId = conv.user1Id === senderId ? conv.user2Id : conv.user1Id;
+  } else if (targetReceiverId) {
+    // Find or create conversation
+    const [u1, u2] = [senderId, targetReceiverId].sort();
+    const conv = await prisma.conversation.upsert({
+      where: { user1Id_user2Id: { user1Id: u1, user2Id: u2 } },
+      create: { user1Id: u1, user2Id: u2 },
+      update: {}
+    });
+    targetConvId = conv.id;
+  } else {
+    const err: any = new Error('Conversation ID or Receiver ID is required');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Check if either user is blocked
+  const isBlocked = await prisma.block.findFirst({
+    where: {
+      OR: [
+        { blockerId: senderId, blockedUserId: targetReceiverId },
+        { blockerId: targetReceiverId, blockedUserId: senderId },
+      ]
+    }
+  });
+  if (isBlocked) {
+    const err: any = new Error('Cannot send message to this user');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // Resolve current membership entitlement
+  const entitlement = await getUserEntitlement(senderId);
+
+  // Check mutual accepted connection or direct messaging privilege
+  const connection = await prisma.interest.findFirst({
+    where: {
+      OR: [
+        { senderId, receiverId: targetReceiverId, status: 'ACCEPTED' },
+        { senderId: targetReceiverId, receiverId: senderId, status: 'ACCEPTED' },
+      ]
+    }
+  });
+
+  if (!connection && !entitlement.canDirectMessage) {
+    const err: any = new Error('Direct messaging requires an accepted connection or a premium membership.');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // Execute atomic quota reservation, message creation, and conversation update
+  const { message } = await prisma.$transaction(async (tx) => {
+    // 1. Atomically check and reserve message quota
+    const res = await reserveQuotaAndCreateMessage(tx, {
+      senderId,
+      targetConvId: targetConvId!,
+      targetReceiverId: targetReceiverId!,
+      content,
+    });
+
+    // 2. Create in-app notification for receiver inside same transaction
+    await tx.notification.create({
+      data: {
+        userId: targetReceiverId!,
+        type: 'NEW_MESSAGE',
+        title: `New Message from ${senderName || 'a match'}`,
+        message: content.trim().length > 60 ? content.trim().substring(0, 57) + '...' : content.trim(),
+        link: '/dashboard/messages',
+      }
+    });
+
+    return res;
+  });
+
+  // Broadcast via Socket.IO only after database commit succeeds
+  if (io) {
+    io.to(`user_${targetReceiverId}`).emit('receive_message', {
+      ...message,
+      senderName,
+    });
+    io.to(`conversation_${targetConvId}`).emit('new_conversation_message', message);
+  }
+
+  return { message, entitlement };
+}
+
 export async function sendMessage(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const currentUserId = req.user.id;
     const { conversationId, receiverId, content } = req.body;
-
-    if (!content || !content.trim()) {
-      return errorResponse(res, 'Message text cannot be empty', 400);
-    }
-
-    let targetConvId = conversationId;
-    let targetReceiverId = receiverId;
-
-    if (targetConvId) {
-      const conv = await prisma.conversation.findUnique({ where: { id: targetConvId } });
-      if (!conv) return errorResponse(res, 'Conversation not found', 404);
-      if (conv.user1Id !== currentUserId && conv.user2Id !== currentUserId) {
-        return errorResponse(res, 'Unauthorized', 403);
-      }
-      targetReceiverId = conv.user1Id === currentUserId ? conv.user2Id : conv.user1Id;
-    } else if (targetReceiverId) {
-      // Find or create conversation
-      const [u1, u2] = [currentUserId, targetReceiverId].sort();
-      const conv = await prisma.conversation.upsert({
-        where: { user1Id_user2Id: { user1Id: u1, user2Id: u2 } },
-        create: { user1Id: u1, user2Id: u2 },
-        update: {}
-      });
-      targetConvId = conv.id;
-    } else {
-      return errorResponse(res, 'Conversation ID or Receiver ID is required', 400);
-    }
-
-    // Check if blocked
-    const isBlocked = await prisma.block.findFirst({
-      where: {
-        OR: [
-          { blockerId: currentUserId, blockedUserId: targetReceiverId },
-          { blockerId: targetReceiverId, blockedUserId: currentUserId },
-        ]
-      }
-    });
-    if (isBlocked) {
-      return errorResponse(res, 'Cannot send message to this user', 403);
-    }
-
-    // Check mutual connection or valid subscription allowing direct message
-    const connection = await prisma.interest.findFirst({
-      where: {
-        OR: [
-          { senderId: currentUserId, receiverId: targetReceiverId, status: 'ACCEPTED' },
-          { senderId: targetReceiverId, receiverId: currentUserId, status: 'ACCEPTED' },
-        ]
-      }
-    });
-
-    const userSub = req.user.subscriptions?.[0];
-    const canDirectMessage = userSub?.plan?.canDirectMessage || false;
-
-    if (!connection && !canDirectMessage) {
-      return errorResponse(res, 'Direct messaging requires an accepted connection or a premium membership.', 403);
-    }
-
-    const message = await prisma.$transaction(async (tx) => {
-      const msg = await tx.message.create({
-        data: {
-          conversationId: targetConvId,
-          senderId: currentUserId,
-          content: content.trim(),
-        }
-      });
-
-      await tx.conversation.update({
-        where: { id: targetConvId },
-        data: { lastMessageAt: new Date() }
-      });
-
-      await tx.notification.create({
-        data: {
-          userId: targetReceiverId,
-          type: 'NEW_MESSAGE',
-          title: `New Message from ${req.user.profile?.fullName || 'a match'}`,
-          message: content.trim().length > 60 ? content.trim().substring(0, 57) + '...' : content.trim(),
-          link: '/dashboard/messages',
-        }
-      });
-
-      return msg;
-    });
-
-    // Emit via Socket.IO if io instance is on app
     const io = req.app.get('io');
-    if (io) {
-      io.to(`user_${targetReceiverId}`).emit('receive_message', {
-        ...message,
-        senderName: req.user.profile?.fullName,
-      });
-      io.to(`conversation_${targetConvId}`).emit('new_conversation_message', message);
-    }
+    const senderName = req.user.profile?.fullName || 'a match';
 
-    return successResponse(res, message, 'Message sent', 201);
+    const result = await sendMessageCore({
+      senderId: currentUserId,
+      senderName,
+      conversationId,
+      receiverId,
+      content,
+      io,
+    });
+
+    return successResponse(res, result.message, 'Message sent', 201);
+  } catch (error: any) {
+    if (error instanceof DailyLimitReachedError || error.code === 'DAILY_MESSAGE_LIMIT_REACHED') {
+      return res.status(403).json({
+        success: false,
+        code: 'DAILY_MESSAGE_LIMIT_REACHED',
+        message: error.message,
+        data: error.data,
+      });
+    }
+    if (error.statusCode) {
+      return errorResponse(res, error.message, error.statusCode);
+    }
+    next(error);
+  }
+}
+
+export async function getMessageUsage(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    const currentUserId = req.user.id;
+    const usage = await getDailyUsage(currentUserId);
+    return successResponse(res, usage, 'Daily message usage retrieved');
   } catch (error) {
     next(error);
   }
@@ -263,5 +330,3 @@ export async function getUnreadCount(req: AuthenticatedRequest, res: Response, n
     next(error);
   }
 }
-
-

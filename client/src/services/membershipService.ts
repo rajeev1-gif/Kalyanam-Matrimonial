@@ -12,4 +12,6 @@ export const membershipService = {
     api.post('/membership/verify', paymentData),
   getPaymentHistory: (): Promise<ApiResponse<any>> => 
     api.get('/membership/payments'),
+  getMessageUsage: (): Promise<ApiResponse<any>> =>
+    api.get('/messages/usage'),
 };

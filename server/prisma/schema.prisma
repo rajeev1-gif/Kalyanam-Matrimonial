@@ -37,6 +37,12 @@ model User {
   shortlistedBy     Shortlist[]        @relation("ShortlistedProfile")
   shortlists        Shortlist[]        @relation("ShortlistedBy")
   subscriptions     Subscription[]
+  adminGrantsReceived AdminAccessGrant[]   @relation("UserAdminGrants")
+  adminGrantsGiven    AdminAccessGrant[]   @relation("AdminGrantedBy")
+  adminGrantsRevoked  AdminAccessGrant[]   @relation("AdminRevokedBy")
+  chatUsages          ChatUsage[]
+  membershipAuditLogs MembershipAuditLog[] @relation("UserAuditLogs")
+  performedAuditLogs  MembershipAuditLog[] @relation("ActorAuditLogs")
 }
 
 model Profile {
@@ -245,12 +251,14 @@ model MembershipPlan {
   contactViewLimit Int            @default(5)
   canDirectMessage Boolean        @default(false)
   priorityListing  Boolean        @default(false)
+  dailyMessageLimit Int           @default(5)
   features         String
   isActive         Boolean        @default(true)
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   payments         Payment[]
   subscriptions    Subscription[]
+  adminGrants      AdminAccessGrant[]
 }
 
 model Subscription {
@@ -354,6 +362,76 @@ model AdminActivityLog {
   ipAddress  String?
   createdAt  DateTime @default(now())
   admin      User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+}
+
+enum GrantStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum MembershipAuditAction {
+  ADMIN_GRANT
+  ADMIN_EXTEND
+  ADMIN_REVOKE
+  PAID_SUBSCRIPTION
+  FALLBACK_TO_FREE
+}
+
+model AdminAccessGrant {
+  id               String         @id @default(cuid())
+  userId           String
+  adminId          String
+  planId           String
+  status           GrantStatus    @default(ACTIVE)
+  startDate        DateTime       @default(now())
+  endDate          DateTime?
+  isUnlimited      Boolean        @default(false)
+  reason           String
+  revokedAt        DateTime?
+  revokedByAdminId String?
+  revocationReason String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  user             User           @relation("UserAdminGrants", fields: [userId], references: [id], onDelete: Cascade)
+  admin            User           @relation("AdminGrantedBy", fields: [adminId], references: [id], onDelete: Cascade)
+  revokingAdmin    User?          @relation("AdminRevokedBy", fields: [revokedByAdminId], references: [id], onDelete: SetNull)
+  plan             MembershipPlan @relation(fields: [planId], references: [id])
+
+  @@index([userId, status])
+  @@index([status, endDate])
+}
+
+model ChatUsage {
+  id           String   @id @default(cuid())
+  userId       String
+  dateKey      String
+  messageCount Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dateKey])
+  @@index([userId, dateKey])
+}
+
+model MembershipAuditLog {
+  id            String                @id @default(cuid())
+  userId        String
+  performedById String?
+  action        MembershipAuditAction
+  planCode      String
+  fromPlan      String?
+  toPlan        String?
+  source        String
+  reason        String?
+  metadata      String?
+  createdAt     DateTime              @default(now())
+  user          User                  @relation("UserAuditLogs", fields: [userId], references: [id], onDelete: Cascade)
+  performedBy   User?                 @relation("ActorAuditLogs", fields: [performedById], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
 }
 
 enum Role {

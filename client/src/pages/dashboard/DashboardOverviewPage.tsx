@@ -13,15 +13,21 @@ import {
   CheckCircle2,
   AlertCircle,
   MessageSquare,
+  Clock,
+  Zap,
 } from 'lucide-react';
 import { searchService } from '../../services/searchService';
 import { interestService } from '../../services/interestService';
 import { shortlistService } from '../../services/shortlistService';
 import { useAuth } from '../../context/AuthContext';
+import { useDailyMessageUsage } from '../../hooks/useDailyMessageUsage';
+import UpgradeMembershipModal from '../../components/common/UpgradeMembershipModal';
 import ProfileCard from '../../components/common/ProfileCard';
 
 export default function DashboardOverviewPage() {
   const { user } = useAuth();
+  const { usage, countdown, refreshUsage } = useDailyMessageUsage();
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const [stats, setStats] = useState({
     profileViews: 0,
@@ -199,39 +205,117 @@ export default function DashboardOverviewPage() {
       {/* SUBSCRIPTION & PROFILE COMPLETION WIDGET ROW */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        {/* Active Plan Widget */}
+        {/* Membership Summary Widget (Phase 5) */}
         <div className="bg-white p-6 rounded-3xl border border-gold-200 shadow-sm flex flex-col justify-between space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Crown className="w-5 h-5 text-gold-600" />
-              <h3 className="font-serif font-bold text-sm text-charcoal-900">Active Membership</h3>
+              <h3 className="font-serif font-bold text-sm text-charcoal-900">Membership Summary</h3>
             </div>
-            <span className="text-[11px] font-bold text-primary-800 bg-primary-50 px-2.5 py-0.5 rounded-full border border-primary-200">
-              {plan.name}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                (usage?.effectivePlan === 'PLATINUM') ? 'bg-purple-100 text-purple-800 border-purple-200' :
+                (usage?.effectivePlan === 'GOLD') ? 'bg-amber-100 text-amber-800 border-amber-200' :
+                (usage?.effectivePlan === 'SILVER') ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                'bg-slate-100 text-slate-700 border-slate-200'
+              }`}>
+                {usage?.effectivePlan || 'FREE'}
+              </span>
+              <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${
+                usage?.accessSource === 'ADMIN' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                usage?.accessSource === 'PAID' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                'bg-slate-50 text-slate-600 border border-slate-200'
+              }`}>
+                {usage?.accessSource || 'FREE'}
+              </span>
+            </div>
           </div>
 
-          <div className="space-y-2 text-xs text-gray-600">
-            <div className="flex justify-between">
-              <span>Remaining Interests:</span>
-              <strong>{activeSub?.interestsRemaining ?? 10}</strong>
+          <div className="space-y-3 text-xs text-gray-600">
+            {/* Messages Used & Remaining */}
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-[11px] text-gray-500">Messages used today:</span>
+                <strong className="text-charcoal-900 font-semibold">
+                  {usage?.isUnlimited ? (
+                    <span className="text-purple-700">Unlimited Messages</span>
+                  ) : (
+                    `${usage?.usedToday ?? 0} / ${usage?.dailyLimit ?? 5}`
+                  )}
+                </strong>
+              </div>
+
+              {/* Progress bar */}
+              <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    usage?.isUnlimited
+                      ? 'bg-gradient-to-r from-purple-500 to-indigo-600 w-full'
+                      : (usage?.remainingToday ?? 5) === 0
+                      ? 'bg-rose-500'
+                      : (usage?.remainingToday ?? 5) === 1
+                      ? 'bg-amber-500'
+                      : 'bg-primary-800'
+                  }`}
+                  style={{
+                    width: usage?.isUnlimited ? '100%' : `${Math.min(100, Math.round(((usage?.usedToday ?? 0) / (usage?.dailyLimit ?? 5)) * 100))}%`
+                  }}
+                />
+              </div>
+
+              <div className="flex justify-between items-center mt-1.5 text-[11px]">
+                <span className="text-gray-500">Remaining messages:</span>
+                <strong className={
+                  usage?.isUnlimited
+                    ? 'text-purple-700'
+                    : (usage?.remainingToday ?? 5) === 0
+                    ? 'text-rose-600 font-bold'
+                    : 'text-charcoal-900'
+                }>
+                  {usage?.isUnlimited ? 'Unlimited' : `${usage?.remainingToday ?? 5}`}
+                </strong>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span>Remaining Contact Reveals:</span>
-              <strong>{activeSub?.contactsRemaining ?? 2}</strong>
+
+            {/* Validity / Expiry */}
+            <div className="flex justify-between items-center text-[11px] pt-1 border-t border-gold-100/60">
+              <span className="text-gray-500">Validity:</span>
+              <span className="text-charcoal-800 font-medium">
+                {usage?.isUnlimited
+                  ? 'Lifetime / Unlimited'
+                  : usage?.accessExpiresAt
+                  ? new Date(usage.accessExpiresAt).toLocaleDateString()
+                  : 'Daily Reset (Free)'}
+              </span>
             </div>
-            <div className="flex justify-between">
-              <span>Direct Chat:</span>
-              <strong>{(activeSub?.plan?.chatEnabled || (activeSub?.plan as any)?.canDirectMessage) ? 'Unlocked' : 'Locked'}</strong>
+
+            {/* Daily Reset Countdown */}
+            <div className="flex justify-between items-center text-[11px] bg-gold-50/60 px-2.5 py-1.5 rounded-xl border border-gold-200/60">
+              <span className="text-gold-900 flex items-center gap-1 font-medium">
+                <Clock className="w-3.5 h-3.5 text-gold-700" />
+                Reset in:
+              </span>
+              <strong className="text-charcoal-900 font-mono text-xs">
+                {countdown.shortFormatted}
+              </strong>
             </div>
           </div>
 
-          <Link
-            to="/dashboard/membership"
-            className="w-full text-center py-2.5 rounded-xl bg-gold-50 border border-gold-300 text-gold-900 font-bold text-xs hover:bg-gold-100 transition"
-          >
-            Upgrade / Manage Plan
-          </Link>
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              onClick={() => setShowUpgradeModal(true)}
+              className="flex-1 py-2.5 rounded-xl bg-gold-400 hover:bg-gold-300 text-charcoal-950 font-bold text-xs uppercase tracking-wider shadow-sm transition"
+            >
+              Upgrade Plan
+            </button>
+            <Link
+              to="/dashboard/membership"
+              className="px-3 py-2.5 rounded-xl border border-gold-300 text-charcoal-700 font-semibold text-xs hover:bg-gold-50 transition"
+              title="View full membership details"
+            >
+              Details
+            </Link>
+          </div>
         </div>
 
         {/* Profile Progress Widget */}
@@ -335,6 +419,16 @@ export default function DashboardOverviewPage() {
           </div>
         )}
       </div>
+
+      <UpgradeMembershipModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        currentUsage={usage}
+        countdownFormatted={countdown.shortFormatted}
+        onUpgraded={() => {
+          refreshUsage();
+        }}
+      />
 
     </div>
   );

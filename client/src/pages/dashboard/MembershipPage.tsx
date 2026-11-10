@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Crown, CheckCircle2, Shield, CreditCard, Sparkles, AlertCircle } from 'lucide-react';
+import { Crown, CheckCircle2, Shield, CreditCard, Sparkles, AlertCircle, Clock, Zap, MessageSquare } from 'lucide-react';
 import { membershipService } from '../../services/membershipService';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
+import { useDailyMessageUsage } from '../../hooks/useDailyMessageUsage';
 
 export default function MembershipPage() {
   const { refreshUser } = useAuth();
   const { showToast } = useNotifications();
+  const { usage, countdown, refreshUsage } = useDailyMessageUsage();
 
-  const [currentSub, setCurrentSub] = useState(null);
-  const [plans, setPlans] = useState([]);
-  const [payments, setPayments] = useState([]);
+  const [currentSub, setCurrentSub] = useState<any | null>(null);
+  const [plans, setPlans] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [upgradingPlanId, setUpgradingPlanId] = useState(null);
+  const [upgradingPlanId, setUpgradingPlanId] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
@@ -37,7 +39,7 @@ export default function MembershipPage() {
     loadData();
   }, []);
 
-  const handleUpgrade = async (plan) => {
+  const handleUpgrade = async (plan: any) => {
     setUpgradingPlanId(plan.id);
     try {
       const orderRes = await membershipService.createOrder(plan.id);
@@ -52,9 +54,10 @@ export default function MembershipPage() {
       if (verifyRes.success) {
         showToast(verifyRes.message || 'Membership upgraded successfully!', 'success');
         await refreshUser();
+        await refreshUsage();
         loadData();
       }
-    } catch (err) {
+    } catch (err: any) {
       showToast(err.message || 'Upgrade failed', 'error');
     } finally {
       setUpgradingPlanId(null);
@@ -85,41 +88,85 @@ export default function MembershipPage() {
       <div className="bg-gradient-to-r from-primary-950 via-primary-900 to-charcoal-950 rounded-3xl p-6 sm:p-8 text-white border-2 border-gold-400 shadow-xl space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-widest text-gold-300">
-              Active Tier
-            </span>
-            <h2 className="font-serif text-3xl font-bold">
-              {currentPlan?.name || 'Free Starter'}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-gold-300">
+                Active Tier
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 border border-white/20 text-gold-200">
+                Source: {usage?.accessSource || (currentSub as any)?.accessSource || 'FREE'}
+              </span>
+            </div>
+            <h2 className="font-serif text-3xl font-bold flex items-center gap-2">
+              {usage?.planName || currentPlan?.name || 'Free Starter'}
+              {usage?.isUnlimited && (
+                <span className="text-xs bg-purple-600 text-white px-2 py-0.5 rounded-full uppercase font-sans font-bold">
+                  Unlimited
+                </span>
+              )}
             </h2>
           </div>
-          {currentSub?.endDate && (
-            <div className="bg-white/10 px-4 py-2 rounded-xl border border-white/20 text-xs">
-              <span className="text-gray-300 block text-[10px]">Valid Until</span>
-              <strong className="text-gold-300">{new Date(currentSub.endDate).toLocaleDateString()}</strong>
-            </div>
-          )}
+          <div className="bg-white/10 px-4 py-2.5 rounded-2xl border border-white/20 text-xs">
+            <span className="text-gray-300 block text-[10px]">Validity / Expiration</span>
+            <strong className="text-gold-300 text-sm">
+              {usage?.isUnlimited
+                ? 'Lifetime / Unlimited'
+                : usage?.accessExpiresAt
+                ? new Date(usage.accessExpiresAt).toLocaleDateString()
+                : (currentSub as any)?.endDate
+                ? new Date((currentSub as any).endDate).toLocaleDateString()
+                : 'Free Tier (Renews Daily)'}
+            </strong>
+          </div>
         </div>
 
         {/* Quotas Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+          {/* Daily Messages Quota */}
+          <div className="bg-white/10 p-4 rounded-2xl border border-white/10 space-y-1">
+            <div className="flex items-center justify-between text-[11px] text-gray-300">
+              <span className="flex items-center gap-1">
+                <MessageSquare className="w-3.5 h-3.5 text-gold-400" />
+                Daily Messages
+              </span>
+              <span className="text-[10px] text-gold-300 font-mono">
+                {countdown.shortFormatted} left
+              </span>
+            </div>
+            <span className="text-2xl font-serif font-bold text-white block">
+              {usage?.isUnlimited ? (
+                <span className="text-xl text-purple-300">Unlimited</span>
+              ) : (
+                `${usage?.remainingToday ?? 5} / ${usage?.dailyLimit ?? 5}`
+              )}
+            </span>
+            <span className="text-[10px] text-gray-400 block">
+              {usage?.isUnlimited ? 'Unlimited direct chat' : 'Remaining allowance for today'}
+            </span>
+          </div>
+
           <div className="bg-white/10 p-4 rounded-2xl border border-white/10 space-y-1">
             <span className="text-[11px] text-gray-300 block">Remaining Interests</span>
-            <span className="text-2xl font-serif font-bold text-white">
-              {currentSub?.interestsRemaining ?? 10}
+            <span className="text-2xl font-serif font-bold text-white block">
+              {(currentSub as any)?.interestsRemaining ?? 10}
             </span>
+            <span className="text-[10px] text-gray-400 block">Proposals you can send</span>
           </div>
 
           <div className="bg-white/10 p-4 rounded-2xl border border-white/10 space-y-1">
             <span className="text-[11px] text-gray-300 block">Verified Contacts Remaining</span>
-            <span className="text-2xl font-serif font-bold text-white">
-              {currentSub?.contactsRemaining ?? 2}
+            <span className="text-2xl font-serif font-bold text-white block">
+              {(currentSub as any)?.contactsRemaining ?? 2}
             </span>
+            <span className="text-[10px] text-gray-400 block">Phone & WhatsApp reveals</span>
           </div>
 
           <div className="bg-white/10 p-4 rounded-2xl border border-white/10 space-y-1">
             <span className="text-[11px] text-gray-300 block">Direct Chat Privileges</span>
-            <span className="text-lg font-bold text-gold-300">
-              {currentPlan?.canDirectMessage ? 'Active & Unlocked' : 'Mutual Match Only'}
+            <span className="text-lg font-bold text-gold-300 block">
+              {(currentPlan?.canDirectMessage || usage?.effectivePlan !== 'FREE') ? 'Active & Unlocked' : 'Mutual Match Only'}
+            </span>
+            <span className="text-[10px] text-gray-400 block">
+              {(currentPlan?.canDirectMessage || usage?.effectivePlan !== 'FREE') ? 'Chat with any profile' : 'Requires mutual accept'}
             </span>
           </div>
         </div>
@@ -133,7 +180,7 @@ export default function MembershipPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {plans.map((p) => {
-            const isSelected = currentPlan?.id === p.id;
+            const isSelected = currentPlan?.id === p.id || usage?.effectivePlan === p.planCode;
             const features = Array.isArray(p.features) ? p.features : (typeof p.features === 'string' ? JSON.parse(p.features) : []);
 
             return (
@@ -152,6 +199,9 @@ export default function MembershipPage() {
                       ₹{p.price.toLocaleString('en-IN')}
                       <span className="text-xs font-sans text-gray-500 font-normal"> / {p.durationMonths} mo</span>
                     </p>
+                    <div className="mt-2 text-xs font-bold text-primary-800 bg-primary-50 px-2.5 py-1 rounded-xl border border-primary-200 inline-block">
+                      {p.dailyMessageLimit === -1 ? 'Unlimited Messages' : `${p.dailyMessageLimit} Messages / Day`}
+                    </div>
                   </div>
 
                   <ul className="space-y-2 text-xs">

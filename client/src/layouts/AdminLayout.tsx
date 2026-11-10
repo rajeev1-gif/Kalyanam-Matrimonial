@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   Heart,
   LucideIcon,
+  Award,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -34,6 +35,7 @@ export default function AdminLayout() {
   const navLinks: AdminNavLink[] = [
     { to: '/admin', label: 'Overview Analytics', icon: LayoutDashboard, exact: true },
     { to: '/admin/users', label: 'User Accounts', icon: Users },
+    { to: '/admin/memberships', label: 'Membership Management', icon: Award },
     { to: '/admin/profiles', label: 'Profile Moderation', icon: ShieldCheck },
     { to: '/admin/reports', label: 'Reported Accounts', icon: AlertTriangle },
     { to: '/admin/plans', label: 'Membership Plans', icon: Crown },

@@ -3,6 +3,8 @@ import crypto from 'crypto';
 import prisma from '../config/db';
 import { successResponse, errorResponse } from '../utils/response';
 import { AuthenticatedRequest } from '../types';
+import { getUserEntitlement } from '../services/entitlementService';
+import { MembershipAuditAction } from '@prisma/client';
 
 export async function getAllPlans(req: Request, res: Response, next: NextFunction) {
   try {
@@ -25,6 +27,7 @@ export async function getAllPlans(req: Request, res: Response, next: NextFunctio
 export async function getCurrentSubscription(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const currentUserId = req.user.id;
+    const entitlement = await getUserEntitlement(currentUserId);
 
     const subscription = await prisma.subscription.findFirst({
       where: {
@@ -36,16 +39,43 @@ export async function getCurrentSubscription(req: AuthenticatedRequest, res: Res
       orderBy: { createdAt: 'desc' }
     });
 
-    if (!subscription) {
-      return successResponse(res, null, 'No active subscription');
-    }
+    const activeGrant = await prisma.adminAccessGrant.findFirst({
+      where: {
+        userId: currentUserId,
+        status: 'ACTIVE',
+        OR: [
+          { isUnlimited: true },
+          { endDate: { gt: new Date() } }
+        ]
+      },
+      include: { plan: true },
+      orderBy: [{ isUnlimited: 'desc' }, { endDate: 'desc' }]
+    });
 
     const formatted = {
-      ...subscription,
+      entitlement,
+      subscription: subscription ? {
+        ...subscription,
+        plan: {
+          ...subscription.plan,
+          features: subscription.plan.features ? JSON.parse(subscription.plan.features) : []
+        }
+      } : null,
+      adminGrant: activeGrant || null,
       plan: {
-        ...subscription.plan,
-        features: subscription.plan.features ? JSON.parse(subscription.plan.features) : []
-      }
+        name: entitlement.planName,
+        planCode: entitlement.effectivePlan,
+        dailyMessageLimit: entitlement.dailyMessageLimit,
+        canDirectMessage: entitlement.canDirectMessage,
+        features: entitlement.features,
+      },
+      accessSource: entitlement.accessSource,
+      accessExpiresAt: entitlement.accessExpiresAt,
+      isUnlimited: entitlement.isUnlimited,
+      interestsRemaining: entitlement.interestLimit,
+      contactsRemaining: entitlement.contactViewLimit,
+      viewsRemaining: entitlement.profileViewLimit,
+      endDate: entitlement.accessExpiresAt,
     };
 
     return successResponse(res, formatted);
@@ -167,6 +197,26 @@ export async function verifyPayment(req: AuthenticatedRequest, res: Response, ne
           viewsRemaining: plan.profileViewLimit,
           contactsRemaining: plan.contactViewLimit,
         }
+      });
+
+      // Audit log entry for paid subscription
+      await tx.membershipAuditLog.create({
+        data: {
+          userId: currentUserId,
+          performedById: currentUserId,
+          action: MembershipAuditAction.PAID_SUBSCRIPTION,
+          planCode: plan.planCode,
+          fromPlan: 'FREE',
+          toPlan: plan.planCode,
+          source: 'PAID',
+          reason: `Online subscription purchase: ${plan.name}`,
+          metadata: JSON.stringify({
+            orderId: payment.orderId,
+            amount: payment.amount,
+            startDate: new Date().toISOString(),
+            endDate: endDate.toISOString(),
+          }),
+        },
       });
 
       // Notification

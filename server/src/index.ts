@@ -81,6 +81,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/interests', interestRoutes);
 app.use('/api/shortlists', shortlistRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/messages', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/membership', membershipRoutes);
 app.use('/api/safety', safetyRoutes);

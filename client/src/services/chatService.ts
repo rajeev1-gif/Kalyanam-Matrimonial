@@ -10,4 +10,6 @@ export const chatService = {
     api.post('/chat/messages', data),
   getUnreadCount: (): Promise<ApiResponse<any>> => 
     api.get('/chat/unread-count'),
+  getMessageUsage: (): Promise<ApiResponse<any>> =>
+    api.get('/chat/usage'),
 };

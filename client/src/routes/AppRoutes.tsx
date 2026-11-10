@@ -38,6 +38,7 @@ import SettingsPage from '../pages/dashboard/SettingsPage';
 // Admin Pages
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
 import AdminUsersPage from '../pages/admin/AdminUsersPage';
+import AdminMembershipsPage from '../pages/admin/AdminMembershipsPage';
 import AdminProfilesPage from '../pages/admin/AdminProfilesPage';
 import AdminReportsPage from '../pages/admin/AdminReportsPage';
 import AdminPlansPage from '../pages/admin/AdminPlansPage';
@@ -94,6 +95,7 @@ export default function AppRoutes() {
       >
         <Route index element={<AdminDashboardPage />} />
         <Route path="users" element={<AdminUsersPage />} />
+        <Route path="memberships" element={<AdminMembershipsPage />} />
         <Route path="profiles" element={<AdminProfilesPage />} />
         <Route path="reports" element={<AdminReportsPage />} />
         <Route path="plans" element={<AdminPlansPage />} />
