@@ -8,3 +8,4 @@ server/uploads/*
 *.log
 .backup_js/
 
+/.vs

@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "description": "Premium Indian Matrimonial Platform (React + Node.js + PostgreSQL + Prisma + Tailwind CSS)",
   "scripts": {
+    "build": "cd server && npm install && npx prisma generate && npm run build",
+    "start": "cd server && npm start",
     "server:install": "cd server && npm install",
     "client:install": "cd client && npm install",
     "install:all": "npm run server:install && npm run client:install",
