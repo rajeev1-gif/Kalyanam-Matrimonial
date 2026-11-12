@@ -28,27 +28,34 @@ import publicRoutes from './routes/publicRoutes';
 const app = express();
 const server = http.createServer(app);
 
-const CLIENT_URL = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
+const configuredClientUrls = (process.env.CLIENT_URL || '')
+  .split(',')
+  .map((url) => url.trim().replace(/^["']|["']$/g, '').replace(/\/+$/, ''))
+  .filter(Boolean);
 
-const allowedOrigins = [
-  CLIENT_URL,
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-];
+const allowedOrigins = Array.from(
+  new Set([
+    ...configuredClientUrls,
+    'https://kalyanam-matrimonial-1.onrender.com',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+  ])
+);
 
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    // Allow requests without an Origin header (e.g. server-to-server).
+    // Allow non-browser requests without an Origin header (e.g. curl, Render health checks).
     if (!origin || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
-    console.error(`CORS blocked origin: ${origin}`);
-    return callback(new Error(`Origin ${origin} not allowed by CORS`));
+    console.warn(`CORS blocked origin: ${origin}`);
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204,
 };
 
 // Socket.IO configuration
@@ -61,12 +68,10 @@ setupChatSockets(io);
 
 // Middleware
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
-app.use(cors({
-  origin: [CLIENT_URL, 'http://localhost:5173', 'http://127.0.0.1:5173'],
-  credentials: true,
-}));
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -113,7 +118,7 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Kalyanam Matrimonial Server running on port ${PORT}`);
-  console.log(`🌐 Client allowed origin: ${CLIENT_URL}`);
+  console.log(`🌐 Allowed CORS origins: ${allowedOrigins.join(', ')}`);
 });
 
 process.on('uncaughtException', (err) => {

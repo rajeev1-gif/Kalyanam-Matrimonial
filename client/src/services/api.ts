@@ -1,7 +1,6 @@
 
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+import { API_BASE_URL } from '../config/env';
 
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -14,6 +13,11 @@ const api: AxiosInstance = axios.create({
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('kalyanam_token');
+
+    // Prevent duplicate /api/api/ segments when baseURL already ends with /api.
+    if (config.url && API_BASE_URL.endsWith('/api')) {
+      config.url = config.url.replace(/^\/?api(?=\/|$)/, '') || '/';
+    }
 
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
