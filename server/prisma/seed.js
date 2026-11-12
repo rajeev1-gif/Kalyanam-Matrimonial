@@ -45,6 +45,7 @@ async function main() {
       interestLimit: 10,
       profileViewLimit: 50,
       contactViewLimit: 2,
+      dailyMessageLimit: 5,
       canDirectMessage: false,
       priorityListing: false,
       features: JSON.stringify([
@@ -67,6 +68,7 @@ async function main() {
       interestLimit: 50,
       profileViewLimit: 200,
       contactViewLimit: 25,
+      dailyMessageLimit: 50,
       canDirectMessage: true,
       priorityListing: false,
       features: JSON.stringify([
@@ -90,6 +92,7 @@ async function main() {
       interestLimit: 150,
       profileViewLimit: 500,
       contactViewLimit: 75,
+      dailyMessageLimit: 150,
       canDirectMessage: true,
       priorityListing: true,
       features: JSON.stringify([
@@ -114,6 +117,7 @@ async function main() {
       interestLimit: 999,
       profileViewLimit: 9999,
       contactViewLimit: 200,
+      dailyMessageLimit: -1,
       canDirectMessage: true,
       priorityListing: true,
       features: JSON.stringify([

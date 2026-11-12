@@ -1,6 +1,11 @@
+import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
-dotenv.config({ path: path.join(__dirname, '../.env'), override: true });
+
+const envPath = path.join(__dirname, '../.env');
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+}
 
 import express, { Request, Response } from 'express';
 import http from 'http';
