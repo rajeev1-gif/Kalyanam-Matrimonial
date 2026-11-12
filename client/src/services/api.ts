@@ -10,6 +10,9 @@ const api: AxiosInstance = axios.create({
   withCredentials: true,
 });
 
+console.log('Production API Base URL:', import.meta.env.VITE_API_URL);
+console.log('Axios instance baseURL:', api.defaults.baseURL);
+
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('kalyanam_token');
