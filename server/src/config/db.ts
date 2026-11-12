@@ -8,20 +8,26 @@ if (fs.existsSync(envPath)) {
   dotenv.config({ path: envPath });
 }
 
-const isProduction = process.env.NODE_ENV === 'production';
-const dbUrl =
-  process.env.DATABASE_URL?.trim() ||
-  (!isProduction ? 'postgresql://postgres:pass@123@localhost:5432/matrimonial_db?schema=public' : undefined);
+const databaseUrl = process.env.DATABASE_URL?.trim();
 
-if (!dbUrl) {
-  console.error('❌ FATAL: DATABASE_URL environment variable is not set in production.');
+if (!databaseUrl) {
+  console.error(
+    '❌ FATAL: DATABASE_URL environment variable is missing. ' +
+      'Configure DATABASE_URL in your Render Backend Web Service Environment settings.'
+  );
 } else {
-  const maskedHost = dbUrl.replace(/^.*@([^/?]+).*$/, '$1');
-  console.log(`🗄️ Prisma database host configured: ${maskedHost}`);
+  const isLocalhost = /@(localhost|127\.0\.0\.1)(:|\/|$)/i.test(databaseUrl);
+  if (process.env.NODE_ENV === 'production' && isLocalhost) {
+    console.error(
+      '❌ WARNING: DATABASE_URL points to localhost in production. ' +
+        'Set DATABASE_URL to your hosted PostgreSQL connection string.'
+    );
+  }
+  const maskedTarget = databaseUrl.replace(/^.*@([^/?]+).*$/, '$1');
+  console.log(`🗄️ Prisma database target host: ${maskedTarget}`);
 }
 
 export const prisma = new PrismaClient({
-  ...(dbUrl ? { datasources: { db: { url: dbUrl } } } : {}),
   log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
 });
 

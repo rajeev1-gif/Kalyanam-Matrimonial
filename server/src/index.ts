@@ -16,6 +16,7 @@ import { Server } from 'socket.io';
 
 import errorHandler from './middleware/errorHandler';
 import setupChatSockets from './sockets/chatSocket';
+import prisma from './config/db';
 
 // Routes
 import authRoutes from './routes/authRoutes';
@@ -95,12 +96,27 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 // Health check endpoint
-app.get('/api/health', (req: Request, res: Response) => {
-  res.json({
-    status: 'ok',
-    service: 'Kalyanam Matrimony API',
-    timestamp: new Date().toISOString()
-  });
+app.get('/api/health', async (req: Request, res: Response) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return res.json({
+      status: 'ok',
+      service: 'Kalyanam Matrimony API',
+      database: 'connected',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    console.error('❌ Health check database error:', err?.message || err);
+    return res.status(503).json({
+      status: 'error',
+      service: 'Kalyanam Matrimony API',
+      database: 'disconnected',
+      message: !process.env.DATABASE_URL?.trim()
+        ? 'DATABASE_URL environment variable is missing.'
+        : 'Unable to reach PostgreSQL database.',
+      timestamp: new Date().toISOString(),
+    });
+  }
 });
 
 // API Routes
@@ -121,10 +137,31 @@ app.use('/api/public', publicRoutes);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`🚀 Kalyanam Matrimonial Server running on port ${PORT}`);
-  console.log(`🌐 Allowed CORS origins: ${allowedOrigins.join(', ')}`);
-});
+
+async function startServer() {
+  if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.trim()) {
+    console.error(
+      '❌ Startup aborted: DATABASE_URL environment variable is missing. ' +
+        'Add DATABASE_URL to your Render Backend Web Service Environment settings.'
+    );
+    process.exit(1);
+  }
+
+  try {
+    await prisma.$connect();
+    console.log('✅ Prisma connected to PostgreSQL database.');
+  } catch (err: any) {
+    console.error('❌ Startup aborted: Failed to connect to PostgreSQL via Prisma:', err?.message || err);
+    process.exit(1);
+  }
+
+  server.listen(PORT, () => {
+    console.log(`🚀 Kalyanam Matrimonial Server running on port ${PORT}`);
+    console.log(`🌐 Allowed CORS origins: ${allowedOrigins.join(', ')}`);
+  });
+}
+
+startServer();
 
 process.on('uncaughtException', (err) => {
   console.error('⚠️ Uncaught Exception:', err);
