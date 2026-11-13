@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import multer from 'multer';
+import 'multer';
 import {
   Role,
   UserStatus,
@@ -48,18 +48,58 @@ export {
   ReportStatus
 };
 
+export interface AuthUserSubscription {
+  id: string;
+  userId?: string;
+  planId?: string;
+  status?: SubscriptionStatus | string;
+  startDate?: Date | string;
+  endDate?: Date | string;
+  interestsRemaining?: number;
+  viewsRemaining?: number;
+  contactsRemaining?: number;
+  plan?: {
+    id?: string;
+    name?: string;
+    planCode?: PlanCode | string;
+    dailyMessageLimit?: number;
+    canDirectMessage?: boolean;
+    [key: string]: any;
+  };
+  [key: string]: any;
+}
+
+export interface AuthUserProfile {
+  id?: string;
+  userId?: string;
+  fullName?: string;
+  gender?: Gender | string;
+  photos?: Array<{ id?: string; url?: string; isProfilePicture?: boolean; [key: string]: any }>;
+  [key: string]: any;
+}
+
 export interface AuthUserPayload {
   id: string;
   email: string;
   role: Role | string;
   mobile?: string;
+  status?: UserStatus | string;
   profileId?: string;
+  profile?: AuthUserProfile | null;
+  subscriptions?: AuthUserSubscription[];
+  [key: string]: any;
+}
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: AuthUserPayload;
+    }
+  }
 }
 
 export interface AuthenticatedRequest extends Request {
-  user?: AuthUserPayload | any;
-  file?: any;
-  files?: any;
+  user?: AuthUserPayload;
 }
 
 export type AsyncRequestHandler = (
