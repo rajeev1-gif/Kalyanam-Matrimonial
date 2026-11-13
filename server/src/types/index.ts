@@ -64,9 +64,9 @@ export interface AuthUserSubscription {
     planCode?: PlanCode | string;
     dailyMessageLimit?: number;
     canDirectMessage?: boolean;
-    [key: string]: any;
+    [key: string]: unknown;
   };
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface AuthUserProfile {
@@ -74,8 +74,8 @@ export interface AuthUserProfile {
   userId?: string;
   fullName?: string;
   gender?: Gender | string;
-  photos?: Array<{ id?: string; url?: string; isProfilePicture?: boolean; [key: string]: any }>;
-  [key: string]: any;
+  photos?: Array<{ id?: string; url?: string; isProfilePicture?: boolean; [key: string]: unknown }>;
+  [key: string]: unknown;
 }
 
 export interface AuthUserPayload {
@@ -87,7 +87,7 @@ export interface AuthUserPayload {
   profileId?: string;
   profile?: AuthUserProfile | null;
   subscriptions?: AuthUserSubscription[];
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 declare global {

@@ -2,7 +2,12 @@ import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import prisma from '../config/db';
 import { errorResponse } from '../utils/response';
-import { AuthenticatedRequest } from '../types';
+import { AuthenticatedRequest, AuthUserPayload } from '../types';
+
+interface JwtTokenPayload {
+  userId: string;
+  role?: string;
+}
 
 export async function authenticate(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
@@ -12,12 +17,12 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded: any = jwt.verify(
+    const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET || 'matrimonial_jwt_super_secret_key_2026_indian_wedding'
-    );
+    ) as JwtTokenPayload;
 
-    const user: any = await prisma.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       include: {
         profile: {
@@ -45,7 +50,7 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
       return errorResponse(res, 'Your account has been suspended. Please contact support.', 403);
     }
 
-    req.user = user;
+    req.user = user as unknown as AuthUserPayload;
     next();
   } catch (error: any) {
     if (error.name === 'TokenExpiredError') {
@@ -59,17 +64,17 @@ export async function optionalAuth(req: AuthenticatedRequest, res: Response, nex
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      req.user = null as any;
+      req.user = undefined;
       return next();
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded: any = jwt.verify(
+    const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET || 'matrimonial_jwt_super_secret_key_2026_indian_wedding'
-    );
+    ) as JwtTokenPayload;
 
-    const user: any = await prisma.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       include: {
         profile: true,
@@ -81,10 +86,10 @@ export async function optionalAuth(req: AuthenticatedRequest, res: Response, nex
       }
     });
 
-    req.user = user || null;
+    req.user = user ? (user as unknown as AuthUserPayload) : undefined;
     next();
   } catch (err) {
-    req.user = null as any;
+    req.user = undefined;
     next();
   }
 }
